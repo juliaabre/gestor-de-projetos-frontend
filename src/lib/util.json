@@ -1,0 +1,78 @@
+{
+  "brand": {
+    "name": "Gestor de Projetos"
+  },
+  "navigation": {
+    "logout": "Sair"
+  },
+  "auth": {
+    "login": {
+      "marketing": {
+        "eyebrow": "Gestão que acompanha seu ritmo",
+        "headline": "Organize o trabalho. Conecte o time.",
+        "description": "Uma base simples para transformar planos em entregas consistentes.",
+        "platform": "Plataforma de gestão de projetos"
+      },
+      "welcome": {
+        "title": "Bem-vindo de volta",
+        "description": "Entre para continuar no seu espaço de trabalho."
+      },
+      "mockMode": {
+        "title": "Modo mock de desenvolvimento",
+        "credentialsPrefix": "Use",
+        "credentialsJoiner": "e",
+        "description": "Nenhum backend será consultado."
+      },
+      "fields": {
+        "email": {
+          "label": "E-mail",
+          "placeholder": "voce@empresa.com"
+        },
+        "password": {
+          "label": "Senha",
+          "placeholder": "Digite sua senha",
+          "show": "Exibir senha",
+          "hide": "Ocultar senha"
+        }
+      },
+      "actions": {
+        "submit": "Entrar",
+        "submitting": "Entrando..."
+      },
+      "footer": "O acesso é protegido e validado pelo servidor da aplicação.",
+      "errors": {
+        "invalidCredentials": "E-mail ou senha inválidos.",
+        "serverUnavailable": "Não foi possível conectar ao servidor.",
+        "generic": "Não foi possível entrar agora. Tente novamente.",
+        "emailRequired": "Informe seu e-mail.",
+        "emailInvalid": "Informe um e-mail válido.",
+        "passwordRequired": "Informe sua senha."
+      }
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Seu espaço de trabalho",
+    "greeting": "Olá, {name}.",
+    "fallbackName": "pessoa",
+    "description": "Tudo pronto para organizar as próximas entregas.",
+    "actions": {
+      "newProject": "Novo projeto"
+    },
+    "projects": {
+      "title": "Projetos",
+      "description": "Sua visão geral aparecerá aqui.",
+      "emptyTitle": "Nenhum projeto criado ainda",
+      "emptyDescription": "Crie seu primeiro projeto para começar a planejar."
+    },
+    "evolution": {
+      "title": "Pronto para evoluir?",
+      "description": "Esta base está preparada para receber quadros, tarefas e novos módulos."
+    }
+  },
+  "access": {
+    "unauthorized": {
+      "title": "Acesso não autorizado",
+      "description": "Você não possui permissão para acessar este recurso."
+    }
+  }
+}
