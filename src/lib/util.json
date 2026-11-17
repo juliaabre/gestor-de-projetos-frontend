@@ -47,6 +47,49 @@
         "emailRequired": "Informe seu e-mail.",
         "emailInvalid": "Informe um e-mail válido.",
         "passwordRequired": "Informe sua senha."
+      },
+      "switch": {
+        "prompt": "Ainda não tem conta?",
+        "action": "Criar conta"
+      }
+    },
+    "register": {
+      "title": "Crie sua conta",
+      "description": "Cadastre-se para começar a organizar seus projetos.",
+      "fields": {
+        "username": {
+          "label": "Nome de usuário",
+          "placeholder": "seu.nome"
+        },
+        "email": {
+          "label": "E-mail",
+          "placeholder": "voce@empresa.com"
+        },
+        "password": {
+          "label": "Senha",
+          "placeholder": "Mínimo de 6 caracteres",
+          "show": "Exibir senha",
+          "hide": "Ocultar senha"
+        }
+      },
+      "actions": {
+        "submit": "Criar conta",
+        "submitting": "Criando conta..."
+      },
+      "switch": {
+        "prompt": "Já tem uma conta?",
+        "action": "Entrar"
+      },
+      "errors": {
+        "usernameRequired": "Informe um nome de usuário.",
+        "usernameLength": "O nome de usuário deve ter entre 3 e 50 caracteres.",
+        "emailRequired": "Informe seu e-mail.",
+        "emailInvalid": "Informe um e-mail válido.",
+        "passwordRequired": "Informe uma senha.",
+        "passwordLength": "A senha deve ter pelo menos 6 caracteres.",
+        "conflict": "Não foi possível criar a conta. Verifique se o e-mail já está cadastrado.",
+        "serverUnavailable": "Não foi possível conectar ao servidor.",
+        "generic": "Não foi possível criar a conta agora. Tente novamente."
       }
     }
   },
@@ -60,9 +103,15 @@
     },
     "projects": {
       "title": "Projetos",
-      "description": "Sua visão geral aparecerá aqui.",
+      "description": "Projetos cadastrados na plataforma.",
       "emptyTitle": "Nenhum projeto criado ainda",
-      "emptyDescription": "Crie seu primeiro projeto para começar a planejar."
+      "emptyDescription": "Crie seu primeiro projeto para começar a planejar.",
+      "loading": "Carregando projetos...",
+      "error": "Não foi possível carregar os projetos.",
+      "retry": "Tentar novamente",
+      "tasksCount": "{count} tarefa(s)",
+      "membersCount": "{count} membro(s)",
+      "createdAt": "Criado em {date}"
     },
     "evolution": {
       "title": "Pronto para evoluir?",

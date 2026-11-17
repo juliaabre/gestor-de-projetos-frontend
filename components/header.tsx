@@ -5,7 +5,7 @@ export function Header({
   user,
   logout,
 }: {
-  user: { name: string; email: string } | null;
+  user: { username: string; email: string } | null;
   logout: () => void;
 }) {
   return (
@@ -19,7 +19,7 @@ export function Header({
         </div>
         <div className="flex items-center gap-4">
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-slate-800">{user?.name}</p>
+            <p className="text-sm font-medium text-slate-800">{user?.username}</p>
             <p className="text-xs text-slate-500">{user?.email}</p>
           </div>
           <button

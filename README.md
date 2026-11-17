@@ -3,9 +3,11 @@
 Base inicial da plataforma de gestão de projetos e equipes da APS.
 
 ## Tecnologias
+
 React, TypeScript, Vite, Tailwind CSS, React Router, Axios, React Hook Form, Zod, Lucide React e Vitest.
 
 ## Executar
+
 Pré-requisitos: Node.js 20+ e pnpm.
 
 ```bash
@@ -17,17 +19,30 @@ pnpm dev
 Testes: `pnpm test` · Build: `pnpm build` · Preview: `pnpm preview`
 
 ## Configuração
-`VITE_API_BASE_URL` define a URL base, por padrão `http://localhost:8080/api`.
 
-## Fluxo de autenticação
-`LoginPage` valida os campos com Zod, chama `authService.login`, que usa o cliente Axios centralizado, e atualiza o `AuthContext`. Rotas protegidas usam `ProtectedRoute`; o logout limpa o estado em memória e redireciona na próxima navegação.
+Em desenvolvimento, deixe `VITE_API_BASE_URL` vazio: o Vite encaminha `/api` e `/projetos` para `VITE_API_PROXY_TARGET` (padrão `http://localhost:8080`), evitando CORS. Em produção, `VITE_API_BASE_URL` deve ser a raiz do backend, **sem** `/api` no final.
 
-A implementação usa `withCredentials: true`, priorizando cookie HttpOnly, Secure e SameSite configurado pelo backend. Não há armazenamento de JWT em localStorage. Se o backend devolver token no corpo, o contrato deve ser alinhado antes de escolher uma estratégia segura de sessão.
+## Integração com o backend
 
-## Contrato provisório
-`POST /auth/login` recebe `{ email, password }` e espera `{ token?, user: { id, name, email, role } }`. Os campos e o endpoint estão isolados em `src/features/auth/services/authService.ts`.
+Contrato alinhado com `gestor-de-projetos-com-retrieval-augmented-generation`. Todas as rotas ficam em `src/lib/endpoints.ts`:
 
-O backend precisa confirmar CORS com credenciais, política de cookies/CSRF, formato de erros, validação da sessão e eventual endpoint de logout. A autorização real deve continuar no servidor; permissões no frontend são apenas controle visual.
+| Recurso      | Rotas                                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------- |
+| Autenticação | `POST /api/v1/auth/login` `{ email, password }` · `POST /api/v1/auth/register` `{ username, email, password }` |
+| Usuários     | `/api/usuarios`                                                                                                |
+| Projetos     | `/projetos` (sem `/api`)                                                                                       |
+| Tarefas      | `/api/tarefas`, `/api/tarefas/projeto/{projetoId}`                                                             |
+
+### Fluxo de autenticação
+
+1. Login/cadastro devolvem o JWT (hoje como texto puro; `{ token }` também é aceito).
+2. O e-mail é lido do `sub` do JWT e o perfil (`id`, `username`) é buscado em `GET /api/usuarios`, já que não existe endpoint `/me`.
+3. O token fica em `sessionStorage` e é enviado em `Authorization: Bearer` pelo interceptor do Axios. Na carga da página a sessão é restaurada se o token não tiver expirado; uma resposta 401 encerra a sessão.
+
+Login com credenciais inválidas retorna **403** (o Spring Security não tem `AuthenticationEntryPoint`), e a tela trata 401 e 403 como credenciais inválidas.
+
+Papéis (`ADMINISTRADOR`, `GERENTE`, `MEMBRO`) ainda não são expostos pelo backend, então `user.roles` fica vazio. Se o backend passar a incluir `roles`/`authorities` no JWT, eles são lidos automaticamente. Permissões no frontend são apenas controle visual.
 
 ## Estrutura
-`src/app` rotas · `src/features/auth` autenticação · `src/features/dashboard` área protegida · `src/components` componentes compartilhados futuros · `src/lib` infraestrutura.
+
+`src/app` rotas · `src/features/auth` autenticação e cadastro · `src/features/dashboard` área protegida · `src/features/projetos`, `tarefas`, `usuarios` tipos e serviços da API · `src/components` componentes compartilhados futuros · `src/lib` infraestrutura.

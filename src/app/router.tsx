@@ -1,6 +1,7 @@
 import { Navigate, Outlet, createBrowserRouter } from "react-router-dom";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
+import { RegisterPage } from "@/features/auth/pages/RegisterPage";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import util from "@/lib/util.json";
 
@@ -15,7 +16,10 @@ function PublicRoute() {
 export const router = createBrowserRouter([
   {
     element: <PublicRoute />,
-    children: [{ path: "/login", element: <LoginPage /> }],
+    children: [
+      { path: "/login", element: <LoginPage /> },
+      { path: "/register", element: <RegisterPage /> },
+    ],
   },
   {
     element: <ProtectedRoute />,

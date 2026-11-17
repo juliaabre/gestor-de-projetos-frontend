@@ -1,7 +1,74 @@
-import { PanelsTopLeft, Plus, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { FolderKanban, LoaderCircle, PanelsTopLeft, Plus, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
+import { listarProjetos } from "@/features/projetos/services/projetoService";
+import type { Projeto } from "@/features/projetos/types";
 import util from "@/lib/util.json";
 import { Header } from "../../../../components/header";
+
+const t = util.dashboard.projects;
+
+function ProjetosList() {
+  const [projetos, setProjetos] = useState<Projeto[] | null>(null);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
+    setError(false);
+    setProjetos(null);
+    listarProjetos()
+      .then(setProjetos)
+      .catch(() => setError(true));
+  }, []);
+
+  useEffect(load, [load]);
+
+  if (error)
+    return (
+      <div role="alert" className="mt-10 rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
+        {t.error}{" "}
+        <button onClick={load} className="font-semibold underline">
+          {t.retry}
+        </button>
+      </div>
+    );
+
+  if (!projetos)
+    return (
+      <p className="mt-10 flex items-center justify-center gap-2 text-sm text-slate-500">
+        <LoaderCircle className="animate-spin" /> {t.loading}
+      </p>
+    );
+
+  if (projetos.length === 0)
+    return (
+      <div className="mt-10 rounded-xl border border-dashed border-slate-200 p-10 text-center">
+        <p className="font-medium text-slate-700">{t.emptyTitle}</p>
+        <p className="mt-1 text-sm text-slate-500">{t.emptyDescription}</p>
+      </div>
+    );
+
+  return (
+    <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+      {projetos.map((projeto) => (
+        <li key={projeto.id} className="rounded-xl border border-slate-200 p-4">
+          <div className="flex items-center gap-2 font-medium text-slate-900">
+            <FolderKanban className="size-4 text-blue-600" /> {projeto.nome}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {t.tasksCount.replace("{count}", String(projeto.tarefasIds?.length ?? 0))}
+            {" · "}
+            {t.membersCount.replace("{count}", String(projeto.equipeIds?.length ?? 0))}
+          </p>
+          {projeto.createdAt && (
+            <p className="mt-1 text-xs text-slate-400">
+              {t.createdAt.replace("{date}", new Date(projeto.createdAt).toLocaleDateString("pt-BR"))}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function DashboardPage() {
   const { user, logout } = useAuth();
@@ -19,7 +86,7 @@ export function DashboardPage() {
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
               {util.dashboard.greeting.replace(
                 "{name}",
-                user?.name?.split(" ")[0] || util.dashboard.fallbackName,
+                user?.username?.split(" ")[0] || util.dashboard.fallbackName,
               )}
             </h1>
             <p className="mt-2 text-slate-500">{util.dashboard.description}</p>
@@ -43,14 +110,7 @@ export function DashboardPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-10 rounded-xl border border-dashed border-slate-200 p-10 text-center">
-              <p className="font-medium text-slate-700">
-                {util.dashboard.projects.emptyTitle}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {util.dashboard.projects.emptyDescription}
-              </p>
-            </div>
+            <ProjetosList />
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-900 p-6 text-white">
             <Sparkles className="text-blue-300" />
