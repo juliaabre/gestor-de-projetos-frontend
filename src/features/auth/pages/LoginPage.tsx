@@ -6,7 +6,11 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { loginSchema, type LoginFormData } from "../schemas/loginSchema";
 import { useAuth } from "../hooks/AuthContext";
-import { AuthLayout, inputClassName, submitClassName } from "../components/AuthLayout";
+import {
+  AuthLayout,
+  inputClassName,
+  submitClassName,
+} from "../components/AuthLayout";
 import util from "@/lib/util.json";
 
 export function LoginPage() {
@@ -27,9 +31,10 @@ export function LoginPage() {
       await login(data);
       navigate("/dashboard", { replace: true });
     } catch (error) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-      // O Spring Security responde 403 (e não 401) quando a autenticação falha,
-      // pois não há AuthenticationEntryPoint configurado no backend.
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
+
       if (status === 401 || status === 403)
         setServerError(util.auth.login.errors.invalidCredentials);
       else if (axios.isAxiosError(error) && !error.response)
@@ -116,7 +121,10 @@ export function LoginPage() {
       </form>
       <p className="mt-6 text-center text-sm text-slate-500">
         {util.auth.login.switch.prompt}{" "}
-        <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+        <Link
+          to="/register"
+          className="font-semibold text-blue-600 hover:text-blue-700"
+        >
           {util.auth.login.switch.action}
         </Link>
       </p>

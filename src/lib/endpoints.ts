@@ -1,27 +1,21 @@
-/**
- * Rotas expostas pelo backend Spring (gestor-de-projetos-com-retrieval-augmented-generation).
- *
- * Os prefixos não são uniformes no backend (`/api/v1/auth`, `/api/usuarios`,
- * `/api/tarefas` e `/projetos`, este último sem `/api`). Por isso o cliente
- * Axios usa a raiz do servidor como baseURL e cada caminho fica completo aqui.
- * Se o backend padronizar os prefixos, basta ajustar este arquivo.
- */
 export const endpoints = {
   auth: {
     login: "/api/v1/auth/login",
     register: "/api/v1/auth/register",
   },
-  usuarios: {
+  users: {
     base: "/api/usuarios",
     byId: (id: number) => `/api/usuarios/${id}`,
   },
-  projetos: {
-    base: "/projetos",
-    byId: (id: number) => `/projetos/${id}`,
+  projects: {
+    base: "/api/projetos",
+    byId: (id: number) => `/api/projetos/${id}`,
+    archive: (id: number) => `/api/projetos/${id}/arquivar`,
+    unarchive: (id: number) => `/api/projetos/${id}/desarquivar`,
   },
-  tarefas: {
+  tasks: {
     base: "/api/tarefas",
     byId: (id: number) => `/api/tarefas/${id}`,
-    byProjeto: (projetoId: number) => `/api/tarefas/projeto/${projetoId}`,
+    byProject: (projectId: number) => `/api/tarefas/projeto/${projectId}`,
   },
 } as const;

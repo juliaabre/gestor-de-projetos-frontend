@@ -3,7 +3,10 @@
     "name": "Gestor de Projetos"
   },
   "navigation": {
-    "logout": "Sair"
+    "logout": "Sair",
+    "dashboard": "Início",
+    "projects": "Projetos",
+    "main": "Navegação principal"
   },
   "auth": {
     "login": {
@@ -103,15 +106,14 @@
     },
     "projects": {
       "title": "Projetos",
-      "description": "Projetos cadastrados na plataforma.",
+      "description": "Seus projetos ativos mais recentes.",
       "emptyTitle": "Nenhum projeto criado ainda",
       "emptyDescription": "Crie seu primeiro projeto para começar a planejar.",
       "loading": "Carregando projetos...",
-      "error": "Não foi possível carregar os projetos.",
       "retry": "Tentar novamente",
       "tasksCount": "{count} tarefa(s)",
       "membersCount": "{count} membro(s)",
-      "createdAt": "Criado em {date}"
+      "viewAll": "Ver todos os projetos"
     },
     "evolution": {
       "title": "Pronto para evoluir?",
@@ -122,6 +124,95 @@
     "unauthorized": {
       "title": "Acesso não autorizado",
       "description": "Você não possui permissão para acessar este recurso."
+    }
+  },
+  "errors": {
+    "network": "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
+    "badRequest": "Os dados enviados são inválidos. Revise o formulário.",
+    "unauthorized": "Sua sessão expirou. Entre novamente.",
+    "forbidden": "Você não tem permissão para realizar esta operação.",
+    "notFound": "O recurso solicitado não foi encontrado.",
+    "conflict": "A operação não pôde ser concluída por um conflito com o estado atual.",
+    "server": "O servidor encontrou um erro. Tente novamente em instantes."
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "retry": "Tentar novamente"
+  },
+  "projects": {
+    "page": {
+      "eyebrow": "Organização das equipes",
+      "title": "Projetos",
+      "description": "Projetos aos quais você tem acesso.",
+      "newProject": "Novo projeto"
+    },
+    "tabs": {
+      "label": "Filtrar projetos",
+      "active": "Ativos",
+      "archived": "Arquivados"
+    },
+    "list": {
+      "loading": "Carregando projetos...",
+      "loadError": "Não foi possível carregar os projetos.",
+      "emptyActiveTitle": "Nenhum projeto ativo",
+      "emptyActiveDescription": "Crie um projeto para começar a organizar o trabalho da equipe.",
+      "emptyArchivedTitle": "Nenhum projeto arquivado",
+      "emptyArchivedDescription": "Projetos arquivados aparecerão aqui."
+    },
+    "card": {
+      "noDescription": "Sem descrição.",
+      "team": "Equipe",
+      "noTeam": "Sem integrantes.",
+      "tasks": "{count} tarefa(s)",
+      "createdAt": "Criado em {date}",
+      "archivedBadge": "Arquivado",
+      "roleManager": "Gerente",
+      "roleMember": "Membro",
+      "creator": "criador",
+      "actions": "Ações do projeto {name}",
+      "edit": "Editar",
+      "archive": "Arquivar",
+      "unarchive": "Desarquivar"
+    },
+    "form": {
+      "createTitle": "Novo projeto",
+      "editTitle": "Editar projeto",
+      "name": "Nome",
+      "namePlaceholder": "Ex.: Sistema de recomendação",
+      "description": "Descrição",
+      "descriptionPlaceholder": "Objetivo, escopo e contexto do projeto",
+      "team": "Equipe",
+      "teamHint": "Selecione os integrantes. O criador do projeto sempre faz parte da equipe.",
+      "teamSearch": "Buscar por nome ou e-mail",
+      "teamLoading": "Carregando usuários...",
+      "teamError": "Não foi possível carregar os usuários.",
+      "teamEmpty": "Nenhum usuário encontrado.",
+      "teamSelected": "{count} selecionado(s)",
+      "you": "você",
+      "creator": "criador",
+      "create": "Criar projeto",
+      "save": "Salvar alterações",
+      "saving": "Salvando...",
+      "nameRequired": "Informe o nome do projeto.",
+      "nameTooLong": "O nome deve ter no máximo 255 caracteres.",
+      "saveError": "Não foi possível salvar o projeto."
+    },
+    "archive": {
+      "title": "Arquivar projeto?",
+      "description": "O projeto \"{name}\" sairá da lista de ativos e não poderá ser editado até ser desarquivado. As tarefas são mantidas.",
+      "confirm": "Arquivar",
+      "confirming": "Arquivando...",
+      "error": "Não foi possível arquivar o projeto."
+    },
+    "unarchive": {
+      "error": "Não foi possível desarquivar o projeto."
+    },
+    "feedback": {
+      "created": "Projeto \"{name}\" criado.",
+      "updated": "Projeto \"{name}\" atualizado.",
+      "archived": "Projeto \"{name}\" arquivado.",
+      "unarchived": "Projeto \"{name}\" desarquivado."
     }
   }
 }

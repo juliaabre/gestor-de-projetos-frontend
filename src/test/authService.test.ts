@@ -29,13 +29,13 @@ describe("contrato de autenticação com o backend", () => {
     expect(isTokenExpired(fakeJwt({ sub: "a@b.com", exp: 1 }))).toBe(true);
   });
 
-  it("extrai papéis do JWT quando existirem, removendo o prefixo ROLE_", () => {
+  it("converte os papéis do JWT para os nomes do frontend", () => {
     expect(extractRoles(fakeJwt({ sub: "a@b.com" }))).toEqual([]);
     expect(
       extractRoles(fakeJwt({ roles: ["ROLE_GERENTE", "ROLE_DESCONHECIDO", "MEMBRO"] })),
-    ).toEqual(["GERENTE", "MEMBRO"]);
+    ).toEqual(["MANAGER", "MEMBER"]);
     expect(extractRoles(fakeJwt({ authorities: [{ authority: "ROLE_ADMINISTRADOR" }] }))).toEqual([
-      "ADMINISTRADOR",
+      "ADMIN",
     ]);
   });
 });

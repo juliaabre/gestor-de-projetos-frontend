@@ -3,7 +3,6 @@ import util from "@/lib/util.json";
 
 const e = util.auth.register.errors;
 
-/** Mesmas regras de UsuarioRegisterRequestDTO no backend. */
 export const registerSchema = z.object({
   username: z
     .string()

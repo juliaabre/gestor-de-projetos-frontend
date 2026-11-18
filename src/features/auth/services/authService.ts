@@ -1,9 +1,9 @@
 import { api } from "@/lib/axios";
 import { endpoints } from "@/lib/endpoints";
 import { decodeJwt } from "@/lib/session";
-import { buscarUsuarioPorEmail } from "@/features/usuarios/services/usuarioService";
+import { findUserByEmail } from "@/features/users/services/userService";
 import {
-  USER_ROLES,
+  ROLE_FROM_API,
   type AuthResult,
   type LoginCredentials,
   type RegisterData,
@@ -19,10 +19,6 @@ export const isMockAuthEnabled =
   import.meta.env.VITE_ENABLE_MOCK_AUTH === "true" &&
   Boolean(mockAuthCredentials.email && mockAuthCredentials.password);
 
-/**
- * Hoje o AuthController devolve o JWT como texto puro (`ResponseEntity<String>`),
- * mas os testes do backend esperam `{ "token": "..." }`. Aceitamos os dois.
- */
 export function extractToken(data: unknown): string {
   if (typeof data === "string" && data.trim()) return data.trim();
   if (data && typeof data === "object" && "token" in data) {
@@ -32,29 +28,32 @@ export function extractToken(data: unknown): string {
   throw new Error("Resposta de autenticação sem token.");
 }
 
-/** Lê papéis do JWT caso o backend passe a incluí-los (claims `roles`/`authorities`). */
 export function extractRoles(token: string): UserRole[] {
   const payload = decodeJwt(token);
   const raw = payload?.roles ?? payload?.authorities;
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((r) => (typeof r === "string" ? r : (r as { authority?: string })?.authority))
-    .filter((r): r is string => typeof r === "string")
-    .map((r) => r.replace(/^ROLE_/, "") as UserRole)
-    .filter((r) => USER_ROLES.includes(r));
+  const roles = raw
+    .map((role) =>
+      typeof role === "string"
+        ? role
+        : (role as { authority?: string })?.authority,
+    )
+    .filter((role): role is string => typeof role === "string")
+    .map((role) => ROLE_FROM_API[role.replace(/^ROLE_/, "")])
+    .filter((role): role is UserRole => Boolean(role));
+  return [...new Set(roles)];
 }
 
-/** Monta o usuário logado a partir do token + GET /api/usuarios. */
-export async function resolveUser(token: string, emailFallback: string): Promise<User> {
+export async function resolveUser(
+  token: string,
+  emailFallback: string,
+): Promise<User> {
   const email = decodeJwt(token)?.sub ?? emailFallback;
   const roles = extractRoles(token);
   try {
-    // A sessão ainda não foi gravada, então o token vai explicitamente.
-    const usuario = await buscarUsuarioPorEmail(email, token);
-    if (usuario) return { ...usuario, roles };
-  } catch {
-    // Sem perfil completo, seguimos só com os dados do token.
-  }
+    const profile = await findUserByEmail(email, token);
+    if (profile) return { ...profile, roles };
+  } catch {}
   return { email, username: email.split("@")[0], roles };
 }
 
@@ -76,7 +75,9 @@ async function authenticate(
   return { token, user };
 }
 
-export async function login(credentials: LoginCredentials): Promise<AuthResult> {
+export async function login(
+  credentials: LoginCredentials,
+): Promise<AuthResult> {
   if (
     isMockAuthEnabled &&
     credentials.email === mockAuthCredentials.email &&
@@ -88,7 +89,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResult> 
         id: 0,
         username: "Usuário de desenvolvimento",
         email: mockAuthCredentials.email,
-        roles: ["GERENTE"],
+        roles: ["MANAGER"],
       },
     };
   }

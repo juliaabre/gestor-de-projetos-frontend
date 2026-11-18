@@ -3,6 +3,7 @@ import { useAuth } from "@/features/auth/hooks/AuthContext";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { RegisterPage } from "@/features/auth/pages/RegisterPage";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
+import { ProjectsPage } from "@/features/projects/pages/ProjectsPage";
 import util from "@/lib/util.json";
 
 function ProtectedRoute() {
@@ -23,7 +24,10 @@ export const router = createBrowserRouter([
   },
   {
     element: <ProtectedRoute />,
-    children: [{ path: "/dashboard", element: <DashboardPage /> }],
+    children: [
+      { path: "/dashboard", element: <DashboardPage /> },
+      { path: "/projects", element: <ProjectsPage /> },
+    ],
   },
   {
     path: "/unauthorized",

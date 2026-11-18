@@ -1,45 +1,37 @@
-import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { FolderKanban, LoaderCircle, PanelsTopLeft, Plus, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
-import { listarProjetos } from "@/features/projetos/services/projetoService";
-import type { Projeto } from "@/features/projetos/types";
+import { useProjects } from "@/features/projects/hooks/useProjects";
+import type { ProjectsPageState } from "@/features/projects/pages/ProjectsPage";
 import util from "@/lib/util.json";
 import { Header } from "../../../../components/header";
 
 const t = util.dashboard.projects;
 
-function ProjetosList() {
-  const [projetos, setProjetos] = useState<Projeto[] | null>(null);
-  const [error, setError] = useState(false);
+const PREVIEW = 4;
 
-  const load = useCallback(() => {
-    setError(false);
-    setProjetos(null);
-    listarProjetos()
-      .then(setProjetos)
-      .catch(() => setError(true));
-  }, []);
+function ProjectsPreview() {
+  const { state, reload } = useProjects();
 
-  useEffect(load, [load]);
-
-  if (error)
+  if (state.status === "error")
     return (
       <div role="alert" className="mt-10 rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
-        {t.error}{" "}
-        <button onClick={load} className="font-semibold underline">
+        <p>{state.message}</p>
+        <button onClick={reload} className="mt-2 font-semibold underline">
           {t.retry}
         </button>
       </div>
     );
 
-  if (!projetos)
+  if (state.status === "loading")
     return (
       <p className="mt-10 flex items-center justify-center gap-2 text-sm text-slate-500">
         <LoaderCircle className="animate-spin" /> {t.loading}
       </p>
     );
 
-  if (projetos.length === 0)
+  const activeProjects = state.projects.filter((project) => !project.archived);
+  if (activeProjects.length === 0)
     return (
       <div className="mt-10 rounded-xl border border-dashed border-slate-200 p-10 text-center">
         <p className="font-medium text-slate-700">{t.emptyTitle}</p>
@@ -48,30 +40,35 @@ function ProjetosList() {
     );
 
   return (
-    <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-      {projetos.map((projeto) => (
-        <li key={projeto.id} className="rounded-xl border border-slate-200 p-4">
-          <div className="flex items-center gap-2 font-medium text-slate-900">
-            <FolderKanban className="size-4 text-blue-600" /> {projeto.nome}
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            {t.tasksCount.replace("{count}", String(projeto.tarefasIds?.length ?? 0))}
-            {" · "}
-            {t.membersCount.replace("{count}", String(projeto.equipeIds?.length ?? 0))}
-          </p>
-          {projeto.createdAt && (
-            <p className="mt-1 text-xs text-slate-400">
-              {t.createdAt.replace("{date}", new Date(projeto.createdAt).toLocaleDateString("pt-BR"))}
+    <>
+      <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+        {activeProjects.slice(0, PREVIEW).map((project) => (
+          <li key={project.id} className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 font-medium text-slate-900">
+              <FolderKanban className="size-4 shrink-0 text-blue-600" />
+              <span className="truncate">{project.name}</span>
+            </div>
+            {project.description && (
+              <p className="mt-1 line-clamp-2 text-sm text-slate-500">{project.description}</p>
+            )}
+            <p className="mt-2 text-xs text-slate-500">
+              {t.tasksCount.replace("{count}", String(project.taskIds.length))}
+              {" · "}
+              {t.membersCount.replace("{count}", String(project.team.length))}
             </p>
-          )}
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+      <Link to="/projects" className="mt-5 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700">
+        {t.viewAll} →
+      </Link>
+    </>
   );
 }
 
 export function DashboardPage() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -91,7 +88,10 @@ export function DashboardPage() {
             </h1>
             <p className="mt-2 text-slate-500">{util.dashboard.description}</p>
           </div>
-          <button className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+          <button
+            type="button"
+            onClick={() => navigate("/projects", { state: { openCreate: true } satisfies ProjectsPageState })}
+            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
             <Plus /> {util.dashboard.actions.newProject}
           </button>
         </div>
@@ -110,7 +110,7 @@ export function DashboardPage() {
                 </p>
               </div>
             </div>
-            <ProjetosList />
+            <ProjectsPreview />
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-900 p-6 text-white">
             <Sparkles className="text-blue-300" />

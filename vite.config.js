@@ -6,7 +6,7 @@ export default defineConfig(function (_a) {
     var mode = _a.mode;
     var env = loadEnv(mode, process.cwd(), "");
     var target = env.VITE_API_PROXY_TARGET || "http://localhost:8080";
-    // Encaminha as chamadas da API para o backend Spring em desenvolvimento,
+    // Encaminha as chamadas da API (/api) para o backend Spring em desenvolvimento,
     // evitando CORS. Navegações do navegador (Accept: text/html) não são
     // encaminhadas, para não conflitar com rotas do próprio frontend.
     var backend = {
@@ -20,7 +20,6 @@ export default defineConfig(function (_a) {
         server: {
             proxy: {
                 "/api": backend,
-                "/projetos": backend,
             },
         },
         test: {
