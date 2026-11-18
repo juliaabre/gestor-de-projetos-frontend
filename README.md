@@ -33,10 +33,6 @@ Contrato alinhado com `gestor-de-projetos-com-retrieval-augmented-generation`. T
 | Projetos     | `/api/projetos`, `PATCH /api/projetos/{id}/arquivar` e `/desarquivar`                                          |
 | Tarefas      | `/api/tarefas`, `/api/tarefas/projeto/{projetoId}`                                                             |
 
-### Nomes em inglês
-
-O código do frontend usa nomes em inglês. O backend mantém os nomes em português no JSON (`nome`, `descricao`, `equipeIds`, `PENDENTE`...), e a conversão fica isolada nos mappers (`src/features/projects/mappers.ts`, `src/features/tasks/mappers.ts`). Os tipos `*Dto` espelham o JSON do backend e só devem ser usados ali. Os papéis do JWT são convertidos para `ADMIN`, `MANAGER` e `MEMBER`.
-
 ### Fluxo de autenticação
 
 1. Login/cadastro devolvem o JWT (texto puro; `{ token }` também é aceito), com os papéis no claim `roles`.
