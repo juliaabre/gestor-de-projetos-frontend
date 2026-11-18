@@ -4,7 +4,7 @@ import { useAuth } from "@/features/auth/hooks/AuthContext";
 import { useProjects } from "@/features/projects/hooks/useProjects";
 import type { ProjectsPageState } from "@/features/projects/pages/ProjectsPage";
 import util from "@/lib/util.json";
-import { Header } from "../../../../components/header";
+import { Header } from "@/components/Header";
 
 const t = util.dashboard.projects;
 

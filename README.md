@@ -8,7 +8,7 @@ React, TypeScript, Vite, Tailwind CSS, React Router, Axios, React Hook Form, Zod
 
 ## Executar
 
-Pré-requisitos: Node.js 20+ e pnpm.
+Pré-requisitos: Node.js 20.11+ e pnpm.
 
 ```bash
 pnpm install

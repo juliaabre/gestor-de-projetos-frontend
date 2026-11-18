@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FolderKanban, LoaderCircle, Plus, X } from "lucide-react";
-import { Header } from "../../../../components/header";
+import { Header } from "@/components/Header";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
 import { getErrorMessage } from "@/lib/apiError";
