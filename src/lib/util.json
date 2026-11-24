@@ -138,7 +138,14 @@
   "common": {
     "cancel": "Cancelar",
     "close": "Fechar",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "tags": {
+      "hint": "Pressione Enter ou vírgula para adicionar.",
+      "remove": "Remover {tag}",
+      "duplicate": "Este item já foi adicionado.",
+      "tooLong": "Cada item deve ter no máximo {max} caracteres.",
+      "tooMany": "Adicione no máximo {max} itens."
+    }
   },
   "projects": {
     "page": {
@@ -173,7 +180,8 @@
       "actions": "Ações do projeto {name}",
       "edit": "Editar",
       "archive": "Arquivar",
-      "unarchive": "Desarquivar"
+      "unarchive": "Desarquivar",
+      "openBoard": "Abrir quadro"
     },
     "form": {
       "createTitle": "Novo projeto",
@@ -213,6 +221,243 @@
       "updated": "Projeto \"{name}\" atualizado.",
       "archived": "Projeto \"{name}\" arquivado.",
       "unarchived": "Projeto \"{name}\" desarquivado."
+    }
+  },
+  "board": {
+    "back": "Voltar para projetos",
+    "loading": "Carregando quadro...",
+    "loadError": "Não foi possível carregar o projeto.",
+    "notFound": "Projeto não encontrado.",
+    "archivedNotice": "Projeto arquivado: o quadro está disponível apenas para leitura.",
+    "newTask": "Nova tarefa",
+    "newColumn": "Nova coluna",
+    "tabs": {
+      "label": "Seções do projeto",
+      "board": "Quadro",
+      "team": "Equipe"
+    },
+    "boardLabel": "Quadro Kanban",
+    "columnCount": "{count} tarefa(s)",
+    "editColumn": "Editar coluna {name}",
+    "addTask": "Adicionar tarefa",
+    "inColumn": "em {name}",
+    "emptyColumn": "Nenhuma tarefa.",
+    "emptyColumnDrop": "Nenhuma tarefa. Arraste uma tarefa para cá.",
+    "emptyBoard": "Nenhuma tarefa ainda. Crie a primeira tarefa para começar a acompanhar o trabalho.",
+    "emptyBoardReadOnly": "Este projeto ainda não tem tarefas.",
+    "mobileHint": "Deslize para o lado para ver as outras colunas. Use \"Mover para\" em cada cartão para mudar o status.",
+    "filters": {
+      "search": "Buscar por título ou tecnologia",
+      "assignee": "Filtrar por responsável",
+      "allAssignees": "Todos os responsáveis",
+      "unassigned": "Sem responsável",
+      "me": "{name} (você)",
+      "noResults": "Nenhuma tarefa corresponde aos filtros."
+    },
+    "card": {
+      "assignee": "Responsável",
+      "unassigned": "Sem responsável",
+      "blocked": "Aguardando {count} dependência(s)",
+      "moveTo": "Mover para",
+      "moveLabel": "Mover \"{title}\" para",
+      "moving": "Movendo tarefa"
+    },
+    "columnForm": {
+      "createTitle": "Nova coluna",
+      "editTitle": "Editar coluna",
+      "description": "A coluna representa um status das tarefas do quadro.",
+      "name": "Nome",
+      "namePlaceholder": "Ex.: Em revisão",
+      "nameRequired": "Informe o nome da coluna.",
+      "nameTooLong": "O nome deve ter no máximo 50 caracteres.",
+      "nameInvalid": "Use ao menos uma letra ou número no nome.",
+      "nameDuplicate": "Já existe uma coluna com este nome.",
+      "create": "Criar coluna",
+      "save": "Salvar coluna",
+      "saving": "Salvando...",
+      "saveError": "Não foi possível salvar a coluna."
+    },
+    "deleteDialog": {
+      "title": "Excluir tarefa?",
+      "description": "A tarefa \"{title}\" será excluída com seus comentários e anexos. Esta ação não pode ser desfeita.",
+      "confirm": "Excluir",
+      "confirming": "Excluindo...",
+      "error": "Não foi possível excluir a tarefa."
+    },
+    "feedback": {
+      "created": "Tarefa \"{title}\" criada.",
+      "updated": "Tarefa \"{title}\" atualizada.",
+      "deleted": "Tarefa \"{title}\" excluída.",
+      "moved": "\"{title}\" movida para {column}.",
+      "moveError": "Não foi possível mover \"{title}\": {reason} A tarefa voltou para a coluna original.",
+      "moveErrorFallback": "erro inesperado.",
+      "columnCreated": "Coluna \"{name}\" criada.",
+      "columnUpdated": "Coluna \"{name}\" atualizada."
+    }
+  },
+  "tasks": {
+    "badges": {
+      "priority": "Prioridade {value}",
+      "complexity": "Complexidade {value}",
+      "dueDate": "Prazo {date}",
+      "overdue": "Atrasada · {date}",
+      "technologies": "Tecnologias"
+    },
+    "form": {
+      "createTitle": "Nova tarefa",
+      "editTitle": "Editar tarefa",
+      "title": "Título",
+      "titlePlaceholder": "Ex.: Implementar tela de login",
+      "content": "Descrição",
+      "contentPlaceholder": "O que precisa ser feito e por quê",
+      "requirements": "Requisitos",
+      "requirementsPlaceholder": "Critérios de aceite, regras e restrições",
+      "technologies": "Tecnologias",
+      "technologiesPlaceholder": "Ex.: React, Spring Boot",
+      "status": "Status",
+      "assignee": "Responsável",
+      "noAssignee": "Sem responsável",
+      "priority": "Prioridade",
+      "complexity": "Complexidade",
+      "noComplexity": "Não definida",
+      "dueDate": "Prazo",
+      "dependencies": "Dependências",
+      "dependenciesHint": "Tarefas que precisam ser concluídas antes desta.",
+      "dependenciesSearch": "Buscar tarefa",
+      "dependenciesSelected": "{count} selecionada(s)",
+      "dependenciesEmpty": "Nenhuma outra tarefa disponível.",
+      "create": "Criar tarefa",
+      "save": "Salvar alterações",
+      "saving": "Salvando...",
+      "saveError": "Não foi possível salvar a tarefa.",
+      "titleRequired": "Informe o título da tarefa.",
+      "titleTooLong": "O título deve ter no máximo 255 caracteres.",
+      "textTooLong": "O texto deve ter no máximo 5000 caracteres.",
+      "technologiesTooMany": "Adicione no máximo 15 tecnologias.",
+      "statusRequired": "Selecione o status.",
+      "priorityRequired": "Selecione a prioridade.",
+      "dueDateInvalid": "Informe uma data válida."
+    },
+    "details": {
+      "status": "Status",
+      "moving": "Movendo tarefa",
+      "edit": "Editar",
+      "delete": "Excluir",
+      "assignee": "Responsável",
+      "unassigned": "Sem responsável",
+      "dueDate": "Prazo",
+      "noDueDate": "Sem prazo",
+      "priority": "Prioridade",
+      "complexity": "Complexidade",
+      "noComplexity": "Não definida",
+      "createdAt": "Criada em {date}",
+      "updatedAt": "atualizada em {date}",
+      "description": "Descrição",
+      "noDescription": "Sem descrição.",
+      "requirements": "Requisitos",
+      "noRequirements": "Nenhum requisito informado.",
+      "technologies": "Tecnologias",
+      "noTechnologies": "Nenhuma tecnologia informada.",
+      "dependencies": "Dependências",
+      "noDependencies": "Esta tarefa não tem dependências.",
+      "dependsOn": "Depende de",
+      "blocks": "Bloqueia",
+      "manageDependencies": "Gerenciar dependências",
+      "activity": "Atividade da tarefa",
+      "unknownAuthor": "Usuário",
+      "tabs": {
+        "comments": "Comentários",
+        "attachments": "Anexos",
+        "history": "Histórico"
+      },
+      "comments": {
+        "label": "Novo comentário",
+        "placeholder": "Escreva um comentário...",
+        "send": "Comentar",
+        "sending": "Enviando...",
+        "loading": "Carregando comentários...",
+        "loadError": "Não foi possível carregar os comentários.",
+        "sendError": "Não foi possível enviar o comentário.",
+        "empty": "Nenhum comentário ainda.",
+        "unavailable": "Comentários não estão disponíveis no servidor.",
+        "required": "Escreva o comentário antes de enviar.",
+        "tooLong": "O comentário deve ter no máximo {max} caracteres."
+      },
+      "attachments": {
+        "choose": "Escolher arquivo",
+        "noFile": "Nenhum arquivo selecionado.",
+        "upload": "Enviar",
+        "uploading": "Enviando...",
+        "hint": "Até {max}. Documentos, planilhas, imagens, texto ou .zip.",
+        "invalidType": "Tipo de arquivo não permitido. Use: {types}.",
+        "tooLarge": "O arquivo excede o limite de {max}.",
+        "emptyFile": "O arquivo está vazio.",
+        "loading": "Carregando anexos...",
+        "loadError": "Não foi possível carregar os anexos.",
+        "uploadError": "Não foi possível enviar o anexo.",
+        "downloadError": "Não foi possível baixar o anexo.",
+        "download": "Baixar {name}",
+        "empty": "Nenhum anexo.",
+        "unavailable": "Anexos não estão disponíveis no servidor."
+      },
+      "history": {
+        "loading": "Carregando histórico...",
+        "loadError": "Não foi possível carregar o histórico.",
+        "empty": "Nenhuma alteração registrada.",
+        "unavailable": "O histórico de alterações não está disponível para esta tarefa.",
+        "someField": "um campo",
+        "changed": "alterou {field} de \"{from}\" para \"{to}\"",
+        "set": "definiu {field} como \"{to}\"",
+        "updated": "atualizou {field}"
+      }
+    }
+  },
+  "skills": {
+    "title": "Integrantes da equipe",
+    "search": "Buscar por nome, tecnologia ou atividade",
+    "noResults": "Nenhum integrante corresponde à busca.",
+    "emptyTeam": "Equipe sem integrantes",
+    "emptyTeamDescription": "Adicione integrantes ao projeto na lista de projetos.",
+    "unavailable": "O cadastro de competências não está disponível no servidor. Os integrantes são exibidos sem competências.",
+    "you": "você",
+    "creator": "Criador",
+    "skills": "Competências",
+    "skillsOf": "Competências de {name}",
+    "technologies": "Tecnologias",
+    "loading": "Carregando competências...",
+    "loadError": "Não foi possível carregar as competências.",
+    "noSkills": "Nenhuma competência cadastrada.",
+    "add": "Adicionar competência",
+    "edit": "Editar competência {name}",
+    "remove": "Remover competência {name}",
+    "form": {
+      "createTitle": "Nova competência",
+      "editTitle": "Editar competência",
+      "technologies": "Tecnologias",
+      "technologiesPlaceholder": "Ex.: React, TypeScript",
+      "activityType": "Tipo de atividade",
+      "level": "Nível de experiência",
+      "select": "Selecione...",
+      "create": "Adicionar",
+      "save": "Salvar alterações",
+      "saving": "Salvando...",
+      "saveError": "Não foi possível salvar a competência.",
+      "technologiesRequired": "Adicione ao menos uma tecnologia.",
+      "technologiesTooMany": "Adicione no máximo 15 tecnologias.",
+      "activityRequired": "Selecione o tipo de atividade.",
+      "levelRequired": "Selecione o nível de experiência."
+    },
+    "deleteDialog": {
+      "title": "Remover competência?",
+      "description": "A competência \"{name}\" será removida do seu perfil.",
+      "confirm": "Remover",
+      "confirming": "Removendo...",
+      "error": "Não foi possível remover a competência."
+    },
+    "feedback": {
+      "created": "Competência adicionada.",
+      "updated": "Competência atualizada.",
+      "deleted": "Competência removida."
     }
   }
 }

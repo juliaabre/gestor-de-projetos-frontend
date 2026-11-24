@@ -46,7 +46,9 @@ function ProjectsPreview() {
           <li key={project.id} className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-center gap-2 font-medium text-slate-900">
               <FolderKanban className="size-4 shrink-0 text-blue-600" />
-              <span className="truncate">{project.name}</span>
+              <Link to={`/projects/${project.id}`} className="truncate hover:text-blue-700 hover:underline">
+                {project.name}
+              </Link>
             </div>
             {project.description && (
               <p className="mt-1 line-clamp-2 text-sm text-slate-500">{project.description}</p>

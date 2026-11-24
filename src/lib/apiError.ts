@@ -48,3 +48,8 @@ export function getErrorMessage(error: unknown, fallback: string): string {
 export function getFieldErrors(error: unknown): Record<string, string> {
   return body(error)?.erros ?? {};
 }
+
+export function isUnavailable(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || !error.response) return false;
+  return [404, 405, 501].includes(error.response.status);
+}

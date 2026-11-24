@@ -2,6 +2,12 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import util from "@/lib/util.json";
 
+const SIZES = {
+  sm: "sm:max-w-md",
+  md: "sm:max-w-xl",
+  lg: "sm:max-w-3xl",
+} as const;
+
 export function Modal({
   title,
   description,
@@ -13,7 +19,7 @@ export function Modal({
   description?: string;
   onClose: () => void;
   children: ReactNode;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   const titleId = useId();
   const descId = useId();
@@ -54,9 +60,7 @@ export function Modal({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl outline-none sm:rounded-2xl ${
-          size === "sm" ? "sm:max-w-md" : "sm:max-w-xl"
-        }`}
+        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl outline-none sm:rounded-2xl ${SIZES[size]}`}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>

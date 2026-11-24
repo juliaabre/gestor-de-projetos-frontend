@@ -4,6 +4,7 @@ import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { RegisterPage } from "@/features/auth/pages/RegisterPage";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { ProjectsPage } from "@/features/projects/pages/ProjectsPage";
+import { ProjectBoardPage } from "@/features/projects/pages/ProjectBoardPage";
 import util from "@/lib/util.json";
 
 function ProtectedRoute() {
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/dashboard", element: <DashboardPage /> },
       { path: "/projects", element: <ProjectsPage /> },
+      { path: "/projects/:projectId", element: <ProjectBoardPage /> },
     ],
   },
   {

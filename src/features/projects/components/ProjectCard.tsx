@@ -1,4 +1,5 @@
-import { Archive, ArchiveRestore, LoaderCircle, Pencil } from "lucide-react";
+import { Archive, ArchiveRestore, KanbanSquare, LoaderCircle, Pencil } from "lucide-react";
+import { Link } from "react-router-dom";
 import util from "@/lib/util.json";
 import type { Project } from "../types";
 import { Avatar } from "./Avatar";
@@ -33,7 +34,9 @@ export function ProjectCard({
     >
       <div className="flex items-start justify-between gap-3">
         <h3 id={`project-${project.id}-name`} className="min-w-0 break-words text-base font-semibold text-slate-900">
-          {project.name}
+          <Link to={`/projects/${project.id}`} className="hover:text-blue-700 hover:underline">
+            {project.name}
+          </Link>
         </h3>
         <div className="flex shrink-0 gap-1.5">
           {project.archived && (
@@ -102,42 +105,50 @@ export function ProjectCard({
           )}
         </p>
 
-        {project.canManage && (
-          <div className="flex gap-2" role="group" aria-label={t.actions.replace("{name}", project.name)}>
-            {project.archived ? (
-              <button
-                type="button"
-                onClick={onUnarchive}
-                disabled={unarchiving}
-                className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-              >
-                {unarchiving ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : (
-                  <ArchiveRestore className="size-4" />
-                )}
-                {t.unarchive}
-              </button>
-            ) : (
-              <>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to={`/projects/${project.id}`}
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-50 px-3 text-sm font-medium text-blue-700 hover:bg-blue-100"
+          >
+            <KanbanSquare className="size-4" /> {t.openBoard}
+          </Link>
+          {project.canManage && (
+            <div className="flex gap-2" role="group" aria-label={t.actions.replace("{name}", project.name)}>
+              {project.archived ? (
                 <button
                   type="button"
-                  onClick={onEdit}
-                  className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={onUnarchive}
+                  disabled={unarchiving}
+                  className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                 >
-                  <Pencil className="size-4" /> {t.edit}
+                  {unarchiving ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    <ArchiveRestore className="size-4" />
+                  )}
+                  {t.unarchive}
                 </button>
-                <button
-                  type="button"
-                  onClick={onArchive}
-                  className="flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 px-3 text-sm font-medium text-amber-800 hover:bg-amber-50"
-                >
-                  <Archive className="size-4" /> {t.archive}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  >
+                    <Pencil className="size-4" /> {t.edit}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onArchive}
+                    className="flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 px-3 text-sm font-medium text-amber-800 hover:bg-amber-50"
+                  >
+                    <Archive className="size-4" /> {t.archive}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );
