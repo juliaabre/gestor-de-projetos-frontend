@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { apiError, makeProject, makeTask } from "./fixtures";
+import { apiError, makeProject, makeTask, dependenciesFrom } from "./fixtures";
 
 const auth = vi.hoisted(() => ({
   user: { id: 1, username: "ana", email: "ana@ex.com", roles: ["ADMIN", "MANAGER"] as string[] },
@@ -24,6 +24,10 @@ const projectService = vi.hoisted(() => ({
 }));
 const taskService = vi.hoisted(() => ({
   listProjectTasks: vi.fn(),
+  listDependencies: vi.fn(),
+  setDependencies: vi.fn(),
+  getTask: vi.fn(),
+  deleteAttachment: vi.fn(),
   listColumns: vi.fn(),
   createColumn: vi.fn(),
   updateColumn: vi.fn(),
@@ -42,7 +46,6 @@ const aiService = vi.hoisted(() => ({
   recommendAssignees: vi.fn(),
   registerDecision: vi.fn(),
   askAssistant: vi.fn(),
-  getConversation: vi.fn(),
   getSummary: vi.fn(),
   getBottlenecks: vi.fn(),
   generateDescription: vi.fn(),
@@ -71,7 +74,7 @@ vi.mock("@/features/users/services/userService", () => ({
 }));
 vi.mock("@/features/skills/services/skillService", () => ({
   listUserSkills: vi.fn().mockResolvedValue([
-    { id: 1, userId: 1, technologies: ["React"], activityType: "FRONTEND", level: "SENIOR" },
+    { id: 1, userId: 1, technologies: ["React"], activityType: "FRONTEND", level: 4 },
   ]),
 }));
 vi.mock("@/features/auth/hooks/AuthContext", () => ({
@@ -107,6 +110,7 @@ function renderRoute(path: string, pattern: string, element: React.ReactNode) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  taskService.listDependencies.mockImplementation(dependenciesFrom(taskService.listProjectTasks));
   projectService.listProjects.mockResolvedValue([makeProject(), makeProject({ id: 11, name: "Portal", archived: true })]);
   projectService.getProject.mockResolvedValue(makeProject());
   taskService.listProjectTasks.mockResolvedValue([
@@ -119,14 +123,14 @@ beforeEach(() => {
   taskService.listHistory.mockRejectedValue(apiError(404));
   aiService.recommendAssignees.mockResolvedValue({
     recommendationId: 1,
-    fallback: false,
-    items: [
-      { userId: 2, username: "bia", score: 90, justification: "Experiência em JWT.", skills: ["JWT"], currentLoad: 1, sources: [] },
-    ],
+    fallback: true,
+    notice: "Resposta extrativa.",
+    decision: null,
+    chosenUserId: null,
+    items: [{ userId: 2, username: null, score: 90, justification: "Experiência em JWT.", sources: [] }],
   });
-  aiService.getConversation.mockResolvedValue([]);
-  aiService.getSummary.mockResolvedValue({ summary: "Projeto 40% concluído.", sources: [] });
-  aiService.getBottlenecks.mockResolvedValue([]);
+  aiService.getSummary.mockResolvedValue({ text: "Projeto 40% concluído.", sources: [], fallback: false, notice: null });
+  aiService.getBottlenecks.mockResolvedValue({ text: "Sem gargalos.", sources: [], fallback: true, notice: "Resposta extrativa." });
   aiService.suggestDependencies.mockResolvedValue([]);
   knowledge.listDocuments.mockResolvedValue([]);
   knowledge.listRules.mockResolvedValue([]);

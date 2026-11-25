@@ -1,6 +1,5 @@
 import type {
   AttachmentDto,
-  AuthorDto,
   BoardColumn,
   ColumnDto,
   CommentDto,
@@ -10,7 +9,6 @@ import type {
   TaskAuthor,
   TaskComment,
   TaskComplexity,
-  TaskComplexityDto,
   TaskHistoryEntry,
   TaskInput,
   TaskPriority,
@@ -36,19 +34,16 @@ const PRIORITY_FROM_API: Record<TaskPriorityDto, TaskPriority> = {
   URGENTE: "URGENT",
 };
 
-const COMPLEXITY_FROM_API: Record<TaskComplexityDto, TaskComplexity> = {
-  BAIXA: "LOW",
-  MEDIA: "MEDIUM",
-  ALTA: "HIGH",
-};
-
 function invert<K extends string, V extends string>(map: Record<K, V>): Record<V, K> {
   return Object.fromEntries(Object.entries(map).map(([k, v]) => [v, k])) as Record<V, K>;
 }
 
 const STATUS_TO_API = invert(STATUS_FROM_API) as Record<string, TaskStatusDto>;
 const PRIORITY_TO_API = invert(PRIORITY_FROM_API);
-const COMPLEXITY_TO_API = invert(COMPLEXITY_FROM_API);
+
+function toComplexity(value: number | null | undefined): TaskComplexity | null {
+  return value != null && Number.isInteger(value) && value >= 1 && value <= 5 ? (value as TaskComplexity) : null;
+}
 
 /** Status padrão são traduzidos; chaves de colunas personalizadas passam intactas. */
 export function statusFromApi(status: string): TaskStatus {
@@ -68,10 +63,11 @@ export function toTask(dto: TaskResponseDto): Task {
     technologies: dto.tecnologias ?? [],
     status: statusFromApi(dto.status),
     priority: PRIORITY_FROM_API[dto.prioridade] ?? "MEDIUM",
-    complexity: dto.complexidade ? (COMPLEXITY_FROM_API[dto.complexidade] ?? null) : null,
+    complexity: toComplexity(dto.complexidade),
     dueDate: dto.prazo ? dto.prazo.slice(0, 10) : null,
-    assigneeId: dto.responsavelId ?? dto.responsavel?.id ?? null,
-    dependencyIds: dto.dependenciasIds ?? [],
+    assigneeId: dto.responsavelId ?? null,
+    // Dependências vêm de rota própria (`/dependencias`) e são preenchidas depois.
+    dependencyIds: [],
     projectId: dto.projetoId,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
@@ -86,13 +82,9 @@ export function toTaskRequest(input: TaskInput): TaskRequestDto {
     tecnologias: input.technologies,
     status: statusToApi(input.status),
     prioridade: PRIORITY_TO_API[input.priority],
-    complexidade:
-      input.complexity === undefined
-        ? undefined
-        : input.complexity && COMPLEXITY_TO_API[input.complexity],
+    complexidade: input.complexity === undefined ? undefined : (input.complexity ?? null),
     prazo: input.dueDate,
     responsavelId: input.assigneeId,
-    dependenciasIds: input.dependencyIds,
     projetoId: input.projectId,
   };
 }
@@ -134,39 +126,32 @@ export const DEFAULT_COLUMNS: BoardColumn[] = TASK_STATUSES.map((status, index) 
   custom: false,
 }));
 
-function toAuthor(dto?: AuthorDto | null): TaskAuthor | null {
-  if (!dto?.username) return null;
-  return { id: dto.id ?? null, username: dto.username };
+function author(id: number | null | undefined): TaskAuthor | null {
+  return id != null ? { id, username: null } : null;
 }
 
 export function toComment(dto: CommentDto): TaskComment {
-  return {
-    id: dto.id,
-    content: dto.conteudo,
-    author: toAuthor(dto.autor),
-    createdAt: dto.createdAt,
-  };
+  return { id: dto.id, content: dto.texto, author: author(dto.autorId), createdAt: dto.criadoEm };
 }
 
 export function toAttachment(dto: AttachmentDto): TaskAttachment {
   return {
     id: dto.id,
-    fileName: dto.nomeArquivo,
-    contentType: dto.tipoConteudo ?? null,
+    fileName: dto.nome,
+    contentType: null,
     size: dto.tamanho ?? null,
-    uploadedBy: toAuthor(dto.autor),
-    createdAt: dto.createdAt,
+    uploadedBy: author(dto.autorId),
+    createdAt: dto.criadoEm,
   };
 }
 
 export function toHistoryEntry(dto: HistoryDto): TaskHistoryEntry {
   return {
     id: dto.id,
-    field: dto.campo ?? null,
-    oldValue: dto.valorAnterior ?? null,
-    newValue: dto.valorNovo ?? null,
-    description: dto.descricao ?? null,
-    author: toAuthor(dto.autor),
-    createdAt: dto.createdAt,
+    action: dto.acao,
+    actorId: dto.atorId ?? null,
+    assigneeId: dto.responsavelId ?? null,
+    status: dto.status ? statusFromApi(dto.status) : null,
+    createdAt: dto.criadoEm,
   };
 }

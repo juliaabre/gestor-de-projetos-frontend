@@ -4,7 +4,8 @@ export type TaskStatus = DefaultTaskStatus | (string & {});
 
 export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
-export type TaskComplexity = "LOW" | "MEDIUM" | "HIGH";
+/** Escala de complexidade do backend: 1 (muito baixa) a 5 (muito alta). */
+export type TaskComplexity = 1 | 2 | 3 | 4 | 5;
 
 export const TASK_STATUSES: readonly { value: DefaultTaskStatus; label: string }[] = [
   { value: "TODO", label: "A fazer" },
@@ -27,9 +28,11 @@ export const TASK_COMPLEXITIES: readonly {
   value: TaskComplexity;
   label: string;
 }[] = [
-  { value: "LOW", label: "Baixa" },
-  { value: "MEDIUM", label: "Média" },
-  { value: "HIGH", label: "Alta" },
+  { value: 1, label: "Muito baixa" },
+  { value: 2, label: "Baixa" },
+  { value: 3, label: "Média" },
+  { value: 4, label: "Alta" },
+  { value: 5, label: "Muito alta" },
 ];
 
 export interface Task {
@@ -76,9 +79,10 @@ export interface ColumnInput {
   status?: TaskStatus;
 }
 
+/** O backend informa só o id do autor; o nome vem da equipe do projeto. */
 export interface TaskAuthor {
   id: number | null;
-  username: string;
+  username: string | null;
 }
 
 export interface TaskComment {
@@ -97,13 +101,13 @@ export interface TaskAttachment {
   createdAt?: string;
 }
 
+/** Ações registradas pelo backend: CRIACAO, ATUALIZACAO, STATUS, ATRIBUICAO etc. */
 export interface TaskHistoryEntry {
   id: number;
-  field: string | null;
-  oldValue: string | null;
-  newValue: string | null;
-  description: string | null;
-  author: TaskAuthor | null;
+  action: string;
+  actorId: number | null;
+  assigneeId: number | null;
+  status: TaskStatus | null;
   createdAt?: string;
 }
 
@@ -117,8 +121,6 @@ export type TaskStatusDto =
 
 export type TaskPriorityDto = "BAIXA" | "MEDIA" | "ALTA" | "URGENTE";
 
-export type TaskComplexityDto = "BAIXA" | "MEDIA" | "ALTA";
-
 export interface TaskRequestDto {
   titulo: string;
   conteudo?: string;
@@ -126,10 +128,9 @@ export interface TaskRequestDto {
   tecnologias?: string[];
   status: string;
   prioridade: TaskPriorityDto;
-  complexidade?: TaskComplexityDto | null;
+  complexidade?: number | null;
   prazo?: string | null;
   responsavelId?: number | null;
-  dependenciasIds?: number[];
   projetoId: number;
 }
 
@@ -141,11 +142,9 @@ export interface TaskResponseDto {
   tecnologias?: string[] | null;
   status: string;
   prioridade: TaskPriorityDto;
-  complexidade?: TaskComplexityDto | null;
+  complexidade?: number | null;
   prazo?: string | null;
   responsavelId?: number | null;
-  responsavel?: { id: number } | null;
-  dependenciasIds?: number[] | null;
   projetoId: number;
   createdAt?: string;
   updatedAt?: string;
@@ -158,33 +157,32 @@ export interface ColumnDto {
   ordem?: number | null;
 }
 
-export interface AuthorDto {
-  id?: number | null;
-  username?: string | null;
-}
-
 export interface CommentDto {
   id: number;
-  conteudo: string;
-  autor?: AuthorDto | null;
-  createdAt?: string;
+  autorId?: number | null;
+  texto: string;
+  criadoEm?: string;
 }
 
 export interface AttachmentDto {
   id: number;
-  nomeArquivo: string;
-  tipoConteudo?: string | null;
+  autorId?: number | null;
+  nome: string;
   tamanho?: number | null;
-  autor?: AuthorDto | null;
-  createdAt?: string;
+  criadoEm?: string;
 }
 
 export interface HistoryDto {
   id: number;
-  campo?: string | null;
-  valorAnterior?: string | null;
-  valorNovo?: string | null;
-  descricao?: string | null;
-  autor?: AuthorDto | null;
-  createdAt?: string;
+  acao: string;
+  atorId?: number | null;
+  responsavelId?: number | null;
+  status?: string | null;
+  criadoEm?: string;
+}
+
+/** Pré-requisito registrado em `/api/tarefas/{id}/dependencias`. */
+export interface PrerequisiteDto {
+  id: number;
+  titulo: string;
 }

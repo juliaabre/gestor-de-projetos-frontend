@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { Task, TaskInput } from "@/features/tasks/types";
-import { apiError, makeProject, makeTask } from "./fixtures";
+import { apiError, makeProject, makeTask, dependenciesFrom } from "./fixtures";
 
 const auth = vi.hoisted(() => ({
   user: { id: 1, username: "ana", email: "ana@ex.com", roles: ["MANAGER"] as string[] },
@@ -11,6 +11,10 @@ const auth = vi.hoisted(() => ({
 const projectService = vi.hoisted(() => ({ getProject: vi.fn(), listProjects: vi.fn() }));
 const taskService = vi.hoisted(() => ({
   listProjectTasks: vi.fn(),
+  listDependencies: vi.fn(),
+  setDependencies: vi.fn(),
+  getTask: vi.fn(),
+  deleteAttachment: vi.fn(),
   listColumns: vi.fn(),
   createColumn: vi.fn(),
   updateColumn: vi.fn(),
@@ -29,7 +33,6 @@ const aiService = vi.hoisted(() => ({
   recommendAssignees: vi.fn(),
   registerDecision: vi.fn(),
   askAssistant: vi.fn(),
-  getConversation: vi.fn(),
   getSummary: vi.fn(),
   getBottlenecks: vi.fn(),
   generateDescription: vi.fn(),
@@ -59,20 +62,26 @@ function renderPage(path = "/projects/10") {
 const RECOMMENDATION = {
   recommendationId: 77,
   fallback: false,
+  notice: null,
+  decision: null,
+  chosenUserId: null,
   items: [
     {
-      userId: 2, username: "bia", score: 92,
-      justification: "Concluiu 5 tarefas com Spring Security.",
-      skills: ["Spring Security", "JWT"], currentLoad: 2,
-      sources: [{ type: "TASK", id: 12, title: "Login antigo", excerpt: null }],
+      userId: 2, username: null, score: 92,
+      justification: "Aderência tecnológica: 100%. No projeto: 5 conclusões no histórico, 2 tarefas abertas.",
+      sources: [{ ref: "T12", type: "TASK", id: 12, title: "Login antigo", excerpt: null, page: null }],
     },
-    { userId: 3, username: "caio", score: 61, justification: "Pouca experiência em segurança.", skills: [], currentLoad: 7, sources: [] },
+    { userId: 3, username: null, score: 61, justification: "Aderência tecnológica: 0%.", sources: [] },
   ],
 };
 
+const answer = (text: string, extra: object = {}) => ({ text, sources: [], fallback: false, notice: null, ...extra });
+
 beforeEach(() => {
   vi.clearAllMocks();
-  auth.user = { id: 1, username: "ana", email: "ana@ex.com", roles: ["MANAGER"] };
+  taskService.listDependencies.mockImplementation(dependenciesFrom(taskService.listProjectTasks));
+  window.sessionStorage.clear();
+  auth.user = { id: 1, username: "ana", email: "ana@ex.com", roles: ["MEMBER"] };
   projectService.getProject.mockResolvedValue(makeProject());
   taskService.listProjectTasks.mockResolvedValue([
     makeTask(),
@@ -84,10 +93,10 @@ beforeEach(() => {
     makeTask({ ...input, id, content: input.content ?? null } as Partial<Task>),
   );
   aiService.recommendAssignees.mockResolvedValue(RECOMMENDATION);
-  aiService.registerDecision.mockResolvedValue(undefined);
-  aiService.getConversation.mockRejectedValue(apiError(404));
-  aiService.getSummary.mockResolvedValue({ summary: "Projeto 40% concluído.", sources: [] });
-  aiService.getBottlenecks.mockResolvedValue([]);
+  aiService.registerDecision.mockResolvedValue({ ...RECOMMENDATION, decision: "ACCEPTED", chosenUserId: 2 });
+  taskService.getTask.mockImplementation(async (id: number) => makeTask({ id, assigneeId: 2 }));
+  aiService.getSummary.mockResolvedValue(answer("Projeto 40% concluído."));
+  aiService.getBottlenecks.mockResolvedValue(answer("Nenhum gargalo identificado [G1]."));
 });
 
 async function openRecommendation() {
@@ -100,7 +109,7 @@ async function openRecommendation() {
 }
 
 describe("Recomendação de responsáveis", () => {
-  it("mostra 'Sugerir' só em tarefas sem responsável e apenas para quem decide", async () => {
+  it("mostra 'Sugerir' só em tarefas sem responsável e apenas para o gerente do projeto", async () => {
     renderPage();
     const card = await screen.findByRole("article", { name: "Autenticação JWT" });
     expect(within(card).getByRole("button", { name: /Sugerir responsável/ })).toBeInTheDocument();
@@ -108,62 +117,75 @@ describe("Recomendação de responsáveis", () => {
     expect(within(assigned).queryByRole("button", { name: /Sugerir/ })).not.toBeInTheDocument();
   });
 
-  it("esconde 'Sugerir' para integrantes sem papel de gerente", async () => {
+  it("esconde 'Sugerir' para integrantes que não são o gerente", async () => {
     projectService.getProject.mockResolvedValue(makeProject({ canManage: false, myRole: "MEMBER" }));
     renderPage();
     const card = await screen.findByRole("article", { name: "Autenticação JWT" });
     expect(within(card).queryByRole("button", { name: /Sugerir/ })).not.toBeInTheDocument();
   });
 
-  it("exibe ranking com percentual, justificativa, competências e carga; aceitar atribui e registra", async () => {
+  it("exibe ranking com percentual, nome da equipe e justificativa; aceitar registra ACEITA e o servidor atribui", async () => {
     const { user, dialog } = await openRecommendation();
     const ranking = await within(dialog).findByRole("group", { name: /Recomendados para esta tarefa/ });
     expect(within(ranking).getByText("92%")).toBeInTheDocument();
-    expect(within(ranking).getByText("Concluiu 5 tarefas com Spring Security.")).toBeInTheDocument();
-    expect(within(ranking).getByText("JWT")).toBeInTheDocument();
-    expect(within(ranking).getByText("Carga atual: 7 tarefa(s)")).toBeInTheDocument();
-    expect(taskService.updateTask).not.toHaveBeenCalled();
+    expect(within(ranking).getByText("bia")).toBeInTheDocument();
+    expect(within(ranking).getByText(/5 conclusões no histórico/)).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Atribuir a bia" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(taskService.updateTask).toHaveBeenCalledWith(100, expect.objectContaining({ assigneeId: 2, title: "Autenticação JWT" }));
-    expect(aiService.registerDecision).toHaveBeenCalledWith(
-      expect.objectContaining({ taskId: 100, recommendationId: 77, decision: "ACCEPTED", recommendedUserId: 2, chosenUserId: 2 }),
-    );
+    expect(aiService.registerDecision).toHaveBeenCalledWith({
+      taskId: 100, recommendationId: 77, decision: "ACCEPTED", chosenUserId: 2,
+    });
+    expect(taskService.updateTask).not.toHaveBeenCalled();
+    expect(taskService.getTask).toHaveBeenCalledWith(100);
     expect(screen.getByRole("status")).toHaveTextContent('"Autenticação JWT" atribuída a bia.');
   });
 
-  it("registra ajuste quando o gerente escolhe outro integrante", async () => {
+  it("mostra o aviso do servidor quando o ranking vem sem síntese do modelo", async () => {
+    aiService.recommendAssignees.mockResolvedValue({ ...RECOMMENDATION, fallback: true, notice: "Resposta extrativa; confirme os dados nas fontes." });
+    const { dialog } = await openRecommendation();
+    expect(await within(dialog).findByRole("note")).toHaveTextContent("Resposta extrativa");
+  });
+
+  it("avisa quando o servidor não atribui o responsável escolhido", async () => {
+    taskService.getTask.mockImplementation(async (id: number) => makeTask({ id, assigneeId: null }));
+    const { user, dialog } = await openRecommendation();
+    await user.click(await within(dialog).findByRole("button", { name: "Atribuir a bia" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent('O servidor não gravou o responsável de "Autenticação JWT"');
+  });
+
+  it("registra AJUSTADA quando o gerente escolhe outro integrante", async () => {
+    taskService.getTask.mockImplementation(async (id: number) => makeTask({ id, assigneeId: 3 }));
     const { user, dialog } = await openRecommendation();
     await user.click(await within(dialog).findByRole("radio", { name: /caio/ }));
     await user.click(within(dialog).getByRole("button", { name: "Atribuir a caio" }));
     await waitFor(() =>
       expect(aiService.registerDecision).toHaveBeenCalledWith(
-        expect.objectContaining({ decision: "ADJUSTED", recommendedUserId: 2, chosenUserId: 3 }),
+        expect.objectContaining({ decision: "ADJUSTED", chosenUserId: 3 }),
       ),
     );
-    expect(taskService.updateTask).toHaveBeenCalledWith(100, expect.objectContaining({ assigneeId: 3 }));
+    expect(taskService.updateTask).not.toHaveBeenCalled();
   });
 
-  it("recusar registra a decisão sem atribuir ninguém", async () => {
+  it("recusar registra RECUSADA com a observação, sem atribuir ninguém", async () => {
     const { user, dialog } = await openRecommendation();
     await user.click(await within(dialog).findByRole("button", { name: "Recusar" }));
     await user.type(within(dialog).getByLabelText(/Motivo da recusa/), "Prefiro dividir");
     await user.click(within(dialog).getByRole("button", { name: "Confirmar recusa" }));
     await waitFor(() =>
       expect(aiService.registerDecision).toHaveBeenCalledWith(
-        expect.objectContaining({ decision: "REJECTED", chosenUserId: null, reason: "Prefiro dividir" }),
+        expect.objectContaining({ decision: "REJECTED", note: "Prefiro dividir" }),
       ),
     );
     expect(taskService.updateTask).not.toHaveBeenCalled();
+    expect(taskService.getTask).not.toHaveBeenCalled();
   });
 
-  it("com a IA indisponível, informa e permite atribuição manual", async () => {
+  it("com a IA indisponível, informa e permite atribuição manual pela edição da tarefa", async () => {
     aiService.recommendAssignees.mockRejectedValue(apiError(503));
     const { user, dialog } = await openRecommendation();
     expect(await within(dialog).findByText(/recomendação por IA está indisponível/)).toBeInTheDocument();
-    expect(within(dialog).queryByText(/%$/)).not.toBeInTheDocument();
     await user.selectOptions(within(dialog).getByRole("combobox"), "3");
     await user.click(within(dialog).getByRole("button", { name: "Atribuir a caio" }));
     await waitFor(() => expect(taskService.updateTask).toHaveBeenCalledWith(100, expect.objectContaining({ assigneeId: 3 })));
@@ -172,14 +194,14 @@ describe("Recomendação de responsáveis", () => {
 });
 
 describe("Assistente e resumo", () => {
-  it("responde com fontes e gargalos, e bloqueia envio duplicado", async () => {
+  it("responde com fontes e aviso de resposta alternativa, e bloqueia envio duplicado", async () => {
     const user = userEvent.setup();
     let resolve!: (value: unknown) => void;
     aiService.askAssistant.mockImplementation(() => new Promise((r) => (resolve = r)));
     renderPage("/projects/10?aba=assistente");
 
     const panel = await screen.findByRole("region", { name: /Assistente do projeto/ });
-    expect(await within(panel).findByText(/histórico não é salvo/)).toBeInTheDocument();
+    expect(within(panel).getByText(/salva só nesta aba/)).toBeInTheDocument();
     await user.type(within(panel).getByLabelText("Pergunta para o assistente"), "Quem está sobrecarregado?");
     await user.click(within(panel).getByRole("button", { name: "Enviar" }));
 
@@ -187,42 +209,40 @@ describe("Assistente e resumo", () => {
     expect(sending).toBeDisabled();
     await user.type(within(panel).getByLabelText("Pergunta para o assistente"), "De novo{Enter}");
     expect(aiService.askAssistant).toHaveBeenCalledTimes(1);
+    expect(aiService.askAssistant).toHaveBeenCalledWith(10, "Quem está sobrecarregado?", expect.anything());
 
     resolve({
       id: "1",
       question: "Quem está sobrecarregado?",
-      answer: "caio tem 7 tarefas ativas.",
+      text: "caio tem 7 tarefas ativas [T101].",
       sources: [
-        { type: "TASK", id: 101, title: "Modelagem do banco", excerpt: null },
-        { type: "DOCUMENT", id: 5, title: "Guia de API.pdf", excerpt: null },
+        { ref: "T101", type: "TASK", id: 101, title: "Modelagem do banco", excerpt: null, page: null },
+        { ref: "D5-1", type: "DOCUMENT", id: 5, title: "Guia de API.pdf", excerpt: "Trecho", page: 3 },
       ],
-      bottlenecks: [
-        { kind: "OVERLOADED_MEMBER", severity: "HIGH", description: "caio tem o dobro da média.", tasks: [], members: [{ id: 3, username: "caio" }] },
-      ],
+      fallback: true,
+      notice: "Resposta extrativa; confirme os dados nas fontes.",
     });
 
-    expect(await within(panel).findByText("caio tem 7 tarefas ativas.")).toBeInTheDocument();
+    expect(await within(panel).findByText("caio tem 7 tarefas ativas [T101].")).toBeInTheDocument();
     const sources = within(panel).getByRole("list", { name: "Fontes citadas" });
-    expect(within(sources).getByText("Guia de API.pdf")).toBeInTheDocument();
-    expect(within(panel).getByRole("note")).toHaveTextContent("Integrante sobrecarregado");
+    expect(within(sources).getByText("Guia de API.pdf · p. 3")).toBeInTheDocument();
+    expect(within(panel).getByRole("note")).toHaveTextContent("Resposta extrativa");
 
     await user.click(within(sources).getByRole("button", { name: /Modelagem do banco/ }));
     expect(screen.getByRole("dialog", { name: "Modelagem do banco" })).toBeInTheDocument();
   });
 
-  it("não perde a pergunta enviada enquanto o histórico ainda carrega", async () => {
+  it("lembra a conversa nesta aba ao voltar para o assistente", async () => {
     const user = userEvent.setup();
-    let resolveHistory!: (value: unknown) => void;
-    aiService.getConversation.mockImplementation(() => new Promise((r) => (resolveHistory = r)));
-    aiService.askAssistant.mockResolvedValue({ id: "2", question: "Nova", answer: "Resposta nova.", sources: [], bottlenecks: [] });
-    renderPage("/projects/10?aba=assistente");
+    aiService.askAssistant.mockResolvedValue({ ...answer("Resposta guardada."), id: "2", question: "Status?" });
+    const { unmount } = renderPage("/projects/10?aba=assistente");
     const panel = await screen.findByRole("region", { name: /Assistente do projeto/ });
+    await user.type(within(panel).getByLabelText("Pergunta para o assistente"), "Status?{Enter}");
+    expect(await within(panel).findByText("Resposta guardada.")).toBeInTheDocument();
+    unmount();
 
-    await user.type(within(panel).getByLabelText("Pergunta para o assistente"), "Nova{Enter}");
-    resolveHistory([{ id: "1", question: "Antiga", answer: "Resposta antiga.", sources: [], bottlenecks: [] }]);
-
-    expect(await within(panel).findByText("Resposta nova.")).toBeInTheDocument();
-    expect(within(panel).getByText("Resposta antiga.")).toBeInTheDocument();
+    renderPage("/projects/10?aba=assistente");
+    expect(await screen.findByText("Resposta guardada.")).toBeInTheDocument();
   });
 
   it("não inventa resposta quando a API falha", async () => {
@@ -235,24 +255,48 @@ describe("Assistente e resumo", () => {
     expect(within(panel).queryByRole("list", { name: "Fontes citadas" })).not.toBeInTheDocument();
   });
 
-  it("diferencia 'sem gargalos' de falha na consulta", async () => {
+  it("gerente vê resumo e gargalos; membro vê só o assistente", async () => {
+    const { unmount } = renderPage("/projects/10?aba=assistente");
+    expect(await screen.findByText("Projeto 40% concluído.")).toBeInTheDocument();
+    expect(screen.getByText("Nenhum gargalo identificado [G1].")).toBeInTheDocument();
+    unmount();
+
+    vi.clearAllMocks();
+    projectService.getProject.mockResolvedValue(makeProject({ canManage: false, myRole: "MEMBER" }));
     renderPage("/projects/10?aba=assistente");
-    expect(await screen.findByText(/Nenhum gargalo identificado/)).toBeInTheDocument();
-    expect(screen.getByText("Projeto 40% concluído.")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: /Assistente do projeto/ })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /Resumo do andamento/ })).not.toBeInTheDocument();
+    expect(aiService.getSummary).not.toHaveBeenCalled();
   });
 
-  it("mostra falha ao consultar gargalos e permite atualizar o resumo", async () => {
+  it("filtra o resumo por período e valida as datas", async () => {
     const user = userEvent.setup();
-    aiService.getBottlenecks.mockRejectedValueOnce(apiError(500)).mockResolvedValueOnce([
-      { kind: "STALLED_TASK", severity: "MEDIUM", description: "Parada há 9 dias.", tasks: [{ id: 101, title: "Modelagem do banco" }], members: [] },
-    ]);
+    renderPage("/projects/10?aba=assistente");
+    await screen.findByText("Projeto 40% concluído.");
+    await user.type(screen.getByLabelText("Prazo a partir de"), "2026-12-10");
+    await user.click(screen.getByRole("button", { name: "Aplicar período" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Informe as duas datas do período");
+
+    await user.type(screen.getByLabelText("Prazo até"), "2026-12-01");
+    await user.click(screen.getByRole("button", { name: "Aplicar período" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("A data inicial deve ser anterior à final.");
+
+    await user.clear(screen.getByLabelText("Prazo até"));
+    await user.type(screen.getByLabelText("Prazo até"), "2026-12-31");
+    await user.click(screen.getByRole("button", { name: "Aplicar período" }));
+    await waitFor(() =>
+      expect(aiService.getSummary).toHaveBeenLastCalledWith(10, { start: "2026-12-10", end: "2026-12-31" }),
+    );
+  });
+
+  it("mostra falha ao consultar gargalos e permite atualizar", async () => {
+    const user = userEvent.setup();
+    aiService.getBottlenecks.mockRejectedValueOnce(apiError(500)).mockResolvedValueOnce(answer("Parada há 9 dias [T101]."));
     renderPage("/projects/10?aba=assistente");
     expect(await screen.findByText("Falha ao consultar gargalos.")).toBeInTheDocument();
-    expect(screen.queryByText(/Nenhum gargalo identificado/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Atualizar" }));
-    expect(await screen.findByText("Parada há 9 dias.")).toBeInTheDocument();
-    expect(aiService.getSummary).toHaveBeenLastCalledWith(10, "PROJECT", true);
+    expect(await screen.findByText("Parada há 9 dias [T101].")).toBeInTheDocument();
   });
 
   it("comunica IA indisponível no resumo sem bloquear o quadro", async () => {
@@ -261,61 +305,78 @@ describe("Assistente e resumo", () => {
     aiService.getBottlenecks.mockRejectedValue(apiError(503));
     renderPage("/projects/10?aba=assistente");
     expect(await screen.findByText(/resumo por IA está indisponível/)).toBeInTheDocument();
-    expect(screen.getByText(/Não é possível afirmar que não há gargalos/)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /Quadro/ }));
     expect(await screen.findByRole("article", { name: "Autenticação JWT" })).toBeInTheDocument();
   });
 });
 
 describe("Geração de descrição e dependências", () => {
-  it("só aplica a descrição gerada após aceitar, e descartar mantém o texto", async () => {
+  async function openEdit(user: ReturnType<typeof userEvent.setup>) {
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Autenticação JWT" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Editar" }));
+    return screen.getByRole("dialog", { name: "Editar tarefa" });
+  }
+
+  it("em tarefa nova, explica que a geração exige salvar antes", async () => {
     const user = userEvent.setup();
-    aiService.generateDescription.mockResolvedValue({ description: "Descrição sugerida.", justification: null, sources: [] });
     renderPage();
     await screen.findByRole("article", { name: "Autenticação JWT" });
     await user.click(screen.getByRole("button", { name: "Nova tarefa" }));
     const dialog = screen.getByRole("dialog", { name: "Nova tarefa" });
+    expect(within(dialog).getByText(/depois que a tarefa é salva/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /Gerar descrição|Refinar/ })).not.toBeInTheDocument();
+  });
 
-    await user.click(within(dialog).getByRole("button", { name: "Gerar descrição" }));
-    expect(within(dialog).getByText("Informe o título para gerar uma descrição.")).toBeInTheDocument();
+  it("só aplica a descrição gerada após aceitar, e descartar mantém o texto", async () => {
+    const user = userEvent.setup();
+    aiService.generateDescription.mockResolvedValue(answer("Descrição sugerida."));
+    const dialog = await openEdit(user);
+    const description = within(dialog).getByLabelText(/^Descrição/);
+    const original = (description as HTMLTextAreaElement).value;
 
-    await user.type(within(dialog).getByLabelText(/^Título/), "Cadastro de livros");
-    await user.click(within(dialog).getByRole("button", { name: "Gerar descrição" }));
+    await user.type(within(dialog).getByLabelText(/Instrução para a IA/), "Mais objetiva");
+    await user.click(within(dialog).getByRole("button", { name: "Refinar descrição" }));
     const review = await within(dialog).findByRole("region", { name: "Sugestão de descrição" });
-    expect(within(dialog).getByLabelText(/^Descrição/)).toHaveValue("");
+    expect(aiService.generateDescription).toHaveBeenCalledWith(100, expect.stringContaining("Instrução: Mais objetiva"));
+    expect(aiService.generateDescription.mock.calls[0][1]).toContain('Refine a descrição da tarefa "Autenticação JWT"');
+    expect(description).toHaveValue(original);
 
     await user.click(within(review).getByRole("button", { name: "Descartar" }));
-    expect(within(dialog).getByLabelText(/^Descrição/)).toHaveValue("");
+    expect(description).toHaveValue(original);
 
-    await user.click(within(dialog).getByRole("button", { name: "Gerar descrição" }));
+    await user.click(within(dialog).getByRole("button", { name: "Refinar descrição" }));
     const again = await within(dialog).findByRole("region", { name: "Sugestão de descrição" });
     await user.click(within(again).getByRole("button", { name: "Editar" }));
     await user.type(within(again).getByLabelText("Editar sugestão"), " Revisada.");
     await user.click(within(again).getByRole("button", { name: "Aceitar" }));
-    expect(within(dialog).getByLabelText(/^Descrição/)).toHaveValue("Descrição sugerida. Revisada.");
-    expect(taskService.createTask).not.toHaveBeenCalled();
+    expect(description).toHaveValue("Descrição sugerida. Revisada.");
+    expect(taskService.updateTask).not.toHaveBeenCalled();
   });
 
   it("formulário segue utilizável com a geração indisponível", async () => {
     const user = userEvent.setup();
     aiService.generateDescription.mockRejectedValue(apiError(503));
-    renderPage();
-    await screen.findByRole("article", { name: "Autenticação JWT" });
-    await user.click(screen.getByRole("button", { name: "Nova tarefa" }));
-    const dialog = screen.getByRole("dialog", { name: "Nova tarefa" });
-    await user.type(within(dialog).getByLabelText(/^Título/), "X");
-    await user.click(within(dialog).getByRole("button", { name: "Gerar descrição" }));
+    const dialog = await openEdit(user);
+    await user.click(within(dialog).getByRole("button", { name: "Refinar descrição" }));
     expect(await within(dialog).findByText(/escrever a descrição manualmente/)).toBeInTheDocument();
+    await user.clear(within(dialog).getByLabelText(/^Descrição/));
     await user.type(within(dialog).getByLabelText(/^Descrição/), "Manual");
     expect(within(dialog).getByLabelText(/^Descrição/)).toHaveValue("Manual");
   });
 
-  it("dependências sugeridas não aparecem como confirmadas até serem registradas", async () => {
+  it("tarefas citadas como dependências só são registradas após seleção", async () => {
     const user = userEvent.setup();
-    aiService.suggestDependencies.mockResolvedValue([
-      { taskId: 101, title: null, justification: "Precisa do banco modelado.", confidence: 80 },
-      { taskId: 100, title: "ela mesma", justification: "", confidence: null },
-    ]);
+    aiService.suggestDependencies.mockResolvedValue({
+      answer: answer("Depende da modelagem [T101]."),
+      suggestions: [
+        { taskId: 101, title: "Modelagem do banco", justification: "Tarefa 101: Modelagem do banco.", confidence: null },
+        { taskId: 999, title: "Inexistente", justification: "", confidence: null },
+      ],
+    });
+    taskService.updateTask.mockImplementation(async (id: number, input: TaskInput) =>
+      makeTask({ ...input, id, content: input.content ?? null } as Partial<Task>),
+    );
     renderPage();
     await user.click(await screen.findByRole("button", { name: "Autenticação JWT" }));
     const dialog = screen.getByRole("dialog", { name: "Autenticação JWT" });
@@ -324,6 +385,7 @@ describe("Geração de descrição e dependências", () => {
     const suggestions = await within(dialog).findByRole("list", { name: "Dependências sugeridas" });
     expect(within(suggestions).getAllByRole("listitem")).toHaveLength(1);
     expect(within(suggestions).getByText("Modelagem do banco")).toBeInTheDocument();
+    expect(within(dialog).getByText("Depende da modelagem [T101].")).toBeInTheDocument();
     expect(within(dialog).queryByRole("list", { name: "Depende de" })).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Registrar selecionadas (0)" })).toBeDisabled();
 

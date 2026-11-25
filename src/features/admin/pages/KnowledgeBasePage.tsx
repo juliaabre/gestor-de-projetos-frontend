@@ -1,19 +1,17 @@
 import { useSearchParams } from "react-router-dom";
-import { BookText, FileStack, ScrollText } from "lucide-react";
+import { FileStack, ScrollText } from "lucide-react";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
 import util from "@/lib/util.json";
 import { DocumentsPanel } from "../components/DocumentsPanel";
-import { RulesPanel } from "../components/RulesPanel";
-import { VocabularyPanel } from "../components/VocabularyPanel";
+import { DomainPanel } from "../components/DomainPanel";
 import { handleTabListKeyDown } from "@/components/tabs";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 const t = util.admin;
 const TABS = [
   { key: "documentos", label: t.tabs.documents, icon: FileStack },
-  { key: "regras", label: t.tabs.rules, icon: ScrollText },
-  { key: "vocabulario", label: t.tabs.vocabulary, icon: BookText },
+  { key: "dominio", label: t.tabs.domain, icon: ScrollText },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -32,7 +30,7 @@ export function KnowledgeBasePage() {
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{t.page.title}</h1>
         <p className="mt-2 text-slate-500">{t.page.description}</p>
 
-        <div role="tablist" aria-label={t.tabs.label} onKeyDown={handleTabListKeyDown} className="mt-8 flex gap-1 overflow-x-auto border-b border-slate-200">
+        <div role="tablist" aria-label={t.tabs.label} onKeyDown={handleTabListKeyDown} className="mt-8 flex gap-1 overflow-x-auto scrollbar-none shadow-[inset_0_-1px_0_var(--color-slate-200)]">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -43,7 +41,7 @@ export function KnowledgeBasePage() {
               tabIndex={tab === key ? 0 : -1}
               aria-controls={`admin-panel-${key}`}
               onClick={() => setParams(key === "documentos" ? {} : { aba: key }, { replace: true })}
-              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium ${
+              className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium ${
                 tab === key ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
@@ -54,8 +52,7 @@ export function KnowledgeBasePage() {
 
         <section role="tabpanel" id={`admin-panel-${tab}`} aria-labelledby={`admin-tab-${tab}`} className="mt-6">
           {tab === "documentos" && <DocumentsPanel />}
-          {tab === "regras" && <RulesPanel />}
-          {tab === "vocabulario" && <VocabularyPanel />}
+          {tab === "dominio" && <DomainPanel />}
         </section>
       </main>
     </div>

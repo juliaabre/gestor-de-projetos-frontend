@@ -1,53 +1,41 @@
-export type DocumentStatus = "PENDING" | "PROCESSING" | "INDEXED" | "FAILED";
-
+/** Documento indexado em um projeto (`Documento` do backend). */
 export interface KnowledgeDocument {
   id: number;
   fileName: string;
-  contentType: string | null;
-  size: number | null;
-  status: DocumentStatus;
-  errorMessage: string | null;
-  chunks: number | null;
-  projectId: number | null;
+  /** Tipo informado pelo backend (ex.: PDF, MARKDOWN, TEXTO). */
+  type: string | null;
+  chunks: number;
   createdAt?: string;
 }
 
-export interface DomainRule {
-  id: number;
-  rule: string;
-  active: boolean;
-  createdAt?: string;
+/** Trecho de um documento, como a IA o recupera. */
+export interface DocumentChunk {
+  ref: string;
+  page: number | null;
+  excerpt: string;
 }
 
-export interface VocabularyTerm {
-  id: number;
-  term: string;
-  definition: string;
-  synonyms: string[];
+/** Configuração de domínio da IA: dois textos livres de até 4000 caracteres. */
+export interface DomainSettings {
+  rules: string;
+  vocabulary: string;
 }
 
 export interface DocumentDto {
   id: number;
-  nomeArquivo: string;
-  tipoConteudo?: string | null;
-  tamanho?: number | null;
-  status?: string | null;
-  mensagemErro?: string | null;
-  quantidadeTrechos?: number | null;
-  projetoId?: number | null;
-  createdAt?: string;
+  nome: string;
+  tipo?: string | null;
+  trechos?: number | null;
+  criadoEm?: string;
 }
 
-export interface RuleDto {
-  id: number;
-  regra: string;
-  ativa?: boolean | null;
-  createdAt?: string;
+export interface ChunkDto {
+  id: string;
+  pagina?: number | null;
+  trecho?: string | null;
 }
 
-export interface TermDto {
-  id: number;
-  termo: string;
-  definicao?: string | null;
-  sinonimos?: string[] | null;
+export interface DomainDto {
+  regras: string;
+  vocabulario: string;
 }

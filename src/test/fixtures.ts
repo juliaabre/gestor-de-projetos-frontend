@@ -20,6 +20,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     description: "Plataforma com IA",
     archived: false,
     creatorId: 1,
+    managerId: 1,
     team: [
       { id: 1, username: "ana", email: "ana@ex.com" },
       { id: 2, username: "bia", email: "bia@ex.com" },
@@ -29,6 +30,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     taskIds: [],
     myRole: "MANAGER",
     canManage: true,
+    canAddMembers: true,
     ...overrides,
   };
 }
@@ -42,11 +44,23 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     technologies: ["Spring Security"],
     status: "TODO",
     priority: "HIGH",
-    complexity: "HIGH",
+    complexity: 4,
     dueDate: null,
     assigneeId: null,
     dependencyIds: [],
     projectId: 10,
     ...overrides,
+  };
+}
+
+/**
+ * O backend devolve dependências em rota própria. Nos testes, responde com as
+ * `dependencyIds` das tarefas que o mock de `listProjectTasks` devolveu.
+ */
+export function dependenciesFrom(listProjectTasks: { mock: { results: { value: unknown }[] } }) {
+  return async (taskId: number) => {
+    const last = listProjectTasks.mock.results[listProjectTasks.mock.results.length - 1];
+    const tasks = ((await last?.value) ?? []) as Task[];
+    return tasks.find((task) => task.id === taskId)?.dependencyIds ?? [];
   };
 }

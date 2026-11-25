@@ -3,6 +3,9 @@ import { toProject, toProjectRequest } from "@/features/projects/mappers";
 import { taskToInput, toColumn, toTask, toTaskRequest } from "@/features/tasks/mappers";
 import { dependentsOf, resolveColumns, statusKeyFromName } from "@/features/tasks/board";
 import { validateAttachment } from "@/features/tasks/components/TaskActivity";
+import { toAttachment, toComment, toHistoryEntry } from "@/features/tasks/mappers";
+import { toSkillItems, toSkills } from "@/features/skills/services/skillService";
+import * as sample from "./backendSamples";
 
 describe("conversão entre o JSON do backend e o modelo do frontend", () => {
   it("converte ProjetoResponseDTO em Project", () => {
@@ -13,12 +16,14 @@ describe("conversão entre o JSON do backend e o modelo do frontend", () => {
         descricao: "Desc",
         arquivado: true,
         criadorId: 2,
+        gerenteId: 2,
         equipe: [{ id: 2, username: "ana", email: "ana@ex.com" }],
         equipeIds: [2],
         tarefasIds: [5],
         createdAt: "2026-11-17T00:00:00Z",
         meuPapelNoProjeto: "ROLE_GERENTE",
         podeGerenciar: true,
+        podeAdicionarMembros: true,
       }),
     ).toEqual({
       id: 1,
@@ -26,13 +31,30 @@ describe("conversão entre o JSON do backend e o modelo do frontend", () => {
       description: "Desc",
       archived: true,
       creatorId: 2,
+      managerId: 2,
       team: [{ id: 2, username: "ana", email: "ana@ex.com" }],
       teamIds: [2],
       taskIds: [5],
       createdAt: "2026-11-17T00:00:00Z",
       myRole: "MANAGER",
       canManage: true,
+      canAddMembers: true,
     });
+  });
+
+  it("lê o projeto real como gerente e como membro", () => {
+    expect(toProject(sample.projectAsManager)).toMatchObject({ managerId: 2, myRole: "MANAGER", canManage: true });
+    expect(toProject(sample.projectAsMember)).toMatchObject({
+      myRole: "MEMBER",
+      canManage: false,
+      canAddMembers: false,
+      teamIds: [1, 2, 3],
+    });
+  });
+
+  it("envia gerenteId apenas para transferir a gerência", () => {
+    expect(toProjectRequest({ name: "APS", managerId: 3 })).toMatchObject({ gerenteId: 3 });
+    expect(toProjectRequest({ name: "APS" }).gerenteId).toBeUndefined();
   });
 
   it("tolera campos ausentes no JSON de projeto", () => {
@@ -82,42 +104,55 @@ describe("conversão entre o JSON do backend e o modelo do frontend", () => {
     });
   });
 
-  it("converte os campos estendidos da tarefa e preserva tudo ao mover", () => {
-    const task = toTask({
-      id: 4,
-      titulo: "Deploy",
-      requisitos: "CI verde",
-      tecnologias: ["Docker"],
-      status: "EM_REVISAO",
-      prioridade: "ALTA",
-      complexidade: "BAIXA",
-      prazo: "2026-12-01T00:00:00",
-      responsavel: { id: 9 },
-      dependenciasIds: [3],
-      projetoId: 1,
-    });
+  it("converte a tarefa real com os campos estendidos (complexidade 1–5)", () => {
+    const task = toTask(sample.task);
     expect(task).toMatchObject({
-      requirements: "CI verde",
-      technologies: ["Docker"],
-      status: "EM_REVISAO",
-      complexity: "LOW",
+      requirements: "r",
+      technologies: ["Java", "JWT"],
+      status: "TODO",
+      complexity: 4,
       dueDate: "2026-12-01",
-      assigneeId: 9,
-      dependencyIds: [3],
+      assigneeId: null,
+      dependencyIds: [],
     });
-    expect(toTaskRequest(taskToInput(task, { status: "DONE" }))).toEqual({
-      titulo: "Deploy",
+    expect(toTask({ ...sample.task, complexidade: 9 }).complexity).toBeNull();
+    expect(toTaskRequest(taskToInput({ ...task, assigneeId: 3 }, { status: "DONE" }))).toEqual({
+      titulo: "API login",
       conteudo: undefined,
-      requisitos: "CI verde",
-      tecnologias: ["Docker"],
+      requisitos: "r",
+      tecnologias: ["Java", "JWT"],
       status: "CONCLUIDA",
       prioridade: "ALTA",
-      complexidade: "BAIXA",
+      complexidade: 4,
       prazo: "2026-12-01",
-      responsavelId: 9,
-      dependenciasIds: [3],
+      responsavelId: 3,
       projetoId: 1,
     });
+  });
+
+  it("converte comentários, anexos e histórico reais", () => {
+    expect(toComment(sample.comment)).toEqual({
+      id: 1, content: "Olá", author: { id: 3, username: null }, createdAt: sample.comment.criadoEm,
+    });
+    expect(toAttachment(sample.attachment)).toMatchObject({ fileName: "a.txt", size: 8, uploadedBy: { id: 3 } });
+    expect(sample.history.map(toHistoryEntry)).toEqual([
+      { id: 1, action: "CRIACAO", actorId: 2, assigneeId: null, status: "TODO", createdAt: sample.history[0].criadoEm },
+      { id: 3, action: "STATUS", actorId: 3, assigneeId: null, status: "IN_PROGRESS", createdAt: sample.history[1].criadoEm },
+    ]);
+  });
+
+  it("agrupa competências por atividade e nível e desfaz o agrupamento ao salvar", () => {
+    const items = [
+      ...sample.skills,
+      { tecnologia: "Spring", tipoAtividade: "BACKEND", nivel: 4 },
+      { tecnologia: "React", tipoAtividade: "FRONTEND", nivel: 2 },
+    ];
+    const grouped = toSkills(items, 3);
+    expect(grouped).toEqual([
+      { id: 1, userId: 3, technologies: ["Java", "Spring"], activityType: "BACKEND", level: 4 },
+      { id: 2, userId: 3, technologies: ["React"], activityType: "FRONTEND", level: 2 },
+    ]);
+    expect(toSkillItems(grouped)).toEqual(items);
   });
 
   it("identifica colunas personalizadas", () => {

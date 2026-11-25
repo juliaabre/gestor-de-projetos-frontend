@@ -30,9 +30,17 @@ describe("permissões no projeto por perfil", () => {
   // frontend só decide o que mostrar a partir deles.
   const cases = [
     {
-      profile: "Administrador (fora da equipe)",
+      // Na gerência por projeto, o administrador não gerencia projetos alheios:
+      // o backend devolve podeGerenciar=false e o frontend respeita.
+      profile: "Administrador integrante, sem ser o gerente",
       user: ADMIN,
-      project: makeProject({ canManage: true, myRole: null }),
+      project: makeProject({ canManage: false, myRole: "MEMBER" }),
+      expected: { canMoveTasks: true, canEditTasks: false, canDeleteTasks: false, canManageColumns: false, canDecideAssignment: false, canCollaborate: true },
+    },
+    {
+      profile: "Administrador que é o gerente do projeto",
+      user: ADMIN,
+      project: makeProject({ canManage: true, myRole: "MANAGER" }),
       expected: { canEditTasks: true, canDeleteTasks: true, canManageColumns: true, canDecideAssignment: true, canCollaborate: true },
     },
     {
@@ -45,13 +53,13 @@ describe("permissões no projeto por perfil", () => {
       profile: "Membro da equipe",
       user: MEMBER,
       project: makeProject({ canManage: false, myRole: "MEMBER" }),
-      expected: { canEditTasks: true, canDeleteTasks: false, canManageColumns: false, canDecideAssignment: false, canCollaborate: true },
+      expected: { canMoveTasks: true, canEditTasks: false, canDeleteTasks: false, canManageColumns: false, canDecideAssignment: false, canCollaborate: true },
     },
     {
       profile: "Usuário fora da equipe",
       user: OUTSIDER,
       project: makeProject({ canManage: false, myRole: null }),
-      expected: { canEditTasks: false, canDeleteTasks: false, canManageColumns: false, canDecideAssignment: false, canCollaborate: false },
+      expected: { canMoveTasks: false, canEditTasks: false, canDeleteTasks: false, canManageColumns: false, canDecideAssignment: false, canCollaborate: false },
     },
   ];
 

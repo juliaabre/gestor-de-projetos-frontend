@@ -1,22 +1,46 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Bot, LoaderCircle, RotateCcw, Send } from "lucide-react";
-import { getAiErrorKind, getErrorMessage, isUnavailable } from "@/lib/apiError";
+import { getAiErrorKind, getErrorMessage } from "@/lib/apiError";
 import { formatDateTime } from "@/lib/format";
 import util from "@/lib/util.json";
 import { inputClass, primaryButtonClass } from "@/components/ui";
-import { askAssistant, getConversation } from "../services/aiService";
+import { askAssistant } from "../services/aiService";
 import type { AssistantAnswer } from "../types";
-import { AiBadge, BottleneckAlert, SourceChips } from "./AiShared";
+import { AiBadge, AiNotice, SourceChips } from "./AiShared";
 
 const t = util.ai.assistant;
-export const MAX_QUESTION_LENGTH = 1000;
+/** Limite do backend para `pergunta`. */
+export const MAX_QUESTION_LENGTH = 4000;
 
 type Entry =
   | { id: string; question: string; status: "pending" }
   | { id: string; question: string; status: "failed"; message: string; unavailable: boolean }
   | ({ status: "answered" } & AssistantAnswer);
 
-type HistoryState = "loading" | "loaded" | "unsupported" | "error";
+/**
+ * O backend não guarda o histórico da conversa; ele fica nesta aba do
+ * navegador (sessionStorage), por projeto, até a aba ser fechada.
+ */
+const storageKey = (projectId: number) => `gestor.assistente.${projectId}`;
+
+function loadConversation(projectId: number): Entry[] {
+  try {
+    const raw = window.sessionStorage.getItem(storageKey(projectId));
+    const items = raw ? (JSON.parse(raw) as Entry[]) : [];
+    return Array.isArray(items) ? items.filter((entry) => entry.status === "answered") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveConversation(projectId: number, entries: Entry[]) {
+  try {
+    const answered = entries.filter((entry) => entry.status === "answered").slice(-50);
+    window.sessionStorage.setItem(storageKey(projectId), JSON.stringify(answered));
+  } catch {
+    /* armazenamento indisponível: a conversa só não é lembrada */
+  }
+}
 
 export function AssistantPanel({
   projectId,
@@ -25,8 +49,7 @@ export function AssistantPanel({
   projectId: number;
   onOpenTask: (taskId: number) => void;
 }) {
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [history, setHistory] = useState<HistoryState>("loading");
+  const [entries, setEntries] = useState<Entry[]>(() => loadConversation(projectId));
   const [question, setQuestion] = useState("");
   const [fieldError, setFieldError] = useState("");
   const [pending, setPending] = useState(false);
@@ -35,26 +58,13 @@ export function AssistantPanel({
   const logRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
 
-  useEffect(() => {
-    let active = true;
-    getConversation(projectId)
-      .then((items) => {
-        if (!active) return;
-        // Mescla: perguntas enviadas enquanto o histórico carregava não podem ser perdidas.
-        setEntries((prev) => [...items.map((item) => ({ ...item, status: "answered" as const })), ...prev]);
-        setHistory("loaded");
-      })
-      .catch((error) => active && setHistory(isUnavailable(error) ? "unsupported" : "error"));
-    return () => {
-      active = false;
-      abortRef.current?.abort();
-    };
-  }, [projectId]);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
+    saveConversation(projectId, entries);
     const log = logRef.current;
     if (log) log.scrollTop = log.scrollHeight;
-  }, [entries]);
+  }, [projectId, entries]);
 
   const send = async (text: string, replaceId?: string) => {
     // Trava síncrona: impede um segundo envio antes de o estado ser re-renderizado.
@@ -116,9 +126,7 @@ export function AssistantPanel({
         <h2 id="assistant-title" className="flex items-center gap-2 font-semibold text-slate-900">
           <Bot className="size-5 text-violet-600" aria-hidden="true" /> {t.title} <AiBadge />
         </h2>
-        <p className="text-xs text-slate-500">
-          {history === "unsupported" ? t.historyUnsupported : history === "error" ? t.historyError : t.historySaved}
-        </p>
+        <p className="text-xs text-slate-500">{t.historyLocal}</p>
       </header>
 
       <div
@@ -130,12 +138,7 @@ export function AssistantPanel({
         className="max-h-[32rem] flex-1 overflow-y-auto px-5 py-4"
       >
       <ol className="flex flex-col gap-4">
-        {history === "loading" && (
-          <li className="flex items-center gap-2 text-sm text-slate-500">
-            <LoaderCircle className="size-4 animate-spin" /> {t.historyLoading}
-          </li>
-        )}
-        {history !== "loading" && entries.length === 0 && (
+        {entries.length === 0 && (
           <li className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
             <p className="font-medium text-slate-700">{t.emptyTitle}</p>
             <p className="mt-1">{t.emptyDescription}</p>
@@ -172,7 +175,7 @@ export function AssistantPanel({
               <div className="flex max-w-[92%] flex-col gap-2">
                 <div className="rounded-2xl rounded-bl-sm bg-blue-50 px-3.5 py-2.5 text-sm text-blue-950">
                   <span className="sr-only">{t.assistant}: </span>
-                  <p className="whitespace-pre-wrap break-words">{entry.answer}</p>
+                  <p className="whitespace-pre-wrap break-words">{entry.text}</p>
                   <div className="mt-2">
                     <SourceChips sources={entry.sources} onOpenTask={onOpenTask} />
                   </div>
@@ -180,9 +183,7 @@ export function AssistantPanel({
                     <p className="mt-1.5 text-[11px] text-blue-900/60">{formatDateTime(entry.createdAt)}</p>
                   )}
                 </div>
-                {entry.bottlenecks.map((bottleneck, index) => (
-                  <BottleneckAlert key={index} bottleneck={bottleneck} onOpenTask={onOpenTask} />
-                ))}
+                <AiNotice answer={entry} />
               </div>
             )}
           </li>

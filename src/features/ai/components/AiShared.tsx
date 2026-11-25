@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, BookOpen, CircleSlash, FileText, FolderKanban, Link2, Sparkles, SquareCheck, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, CircleSlash, FileText, FolderKanban, Info, Sparkles, SquareCheck } from "lucide-react";
 import util from "@/lib/util.json";
 import { fillTemplate } from "@/lib/format";
-import type { AiSource, Bottleneck, BottleneckKind, Severity } from "../types";
+import type { AiAnswer, AiSource } from "../types";
 
 const t = util.ai.shared;
 
@@ -27,7 +27,32 @@ export function AiUnavailable({ message, children }: { message: string; children
   );
 }
 
-const SOURCE_ICON = { TASK: SquareCheck, DOCUMENT: FileText, PROJECT: FolderKanban, OTHER: BookOpen } as const;
+/**
+ * Aviso do servidor quando a resposta é alternativa (sem síntese do modelo,
+ * por exemplo com o provedor de IA desligado): os dados vêm das fontes.
+ */
+export function AiNotice({ answer }: { answer: Pick<AiAnswer, "fallback" | "notice"> }) {
+  if (!answer.fallback && !answer.notice) return null;
+  return (
+    <p role="note" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+      <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+      <span>{answer.notice ?? t.fallbackNotice}</span>
+    </p>
+  );
+}
+
+/** Texto gerado pela IA, preservando quebras de linha. */
+export function AiText({ text }: { text: string }) {
+  return <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{text}</p>;
+}
+
+const SOURCE_ICON = {
+  TASK: SquareCheck,
+  DOCUMENT: FileText,
+  PROJECT: FolderKanban,
+  INDICATORS: BarChart3,
+  OTHER: BookOpen,
+} as const;
 
 export function SourceChips({
   sources,
@@ -43,11 +68,16 @@ export function SourceChips({
     <ul className="flex flex-wrap gap-1.5" aria-label={label}>
       {sources.map((source, index) => {
         const Icon = SOURCE_ICON[source.type];
-        const text = source.type === "TASK" && source.id != null ? fillTemplate(t.taskSource, { id: source.id, title: source.title }) : source.title;
+        const text =
+          source.type === "TASK" && source.id != null
+            ? fillTemplate(t.taskSource, { id: source.id, title: source.title })
+            : source.page != null
+              ? fillTemplate(t.pageSource, { title: source.title, page: source.page })
+              : source.title;
         const className =
           "inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700";
         return (
-          <li key={`${source.type}-${source.id ?? index}`} className="max-w-full">
+          <li key={`${source.ref}-${index}`} className="max-w-full">
             {source.type === "TASK" && source.id != null && onOpenTask ? (
               <button
                 type="button"
@@ -68,70 +98,6 @@ export function SourceChips({
         );
       })}
     </ul>
-  );
-}
-
-const SEVERITY_STYLE: Record<Severity, string> = {
-  LOW: "border-amber-200 bg-amber-50/60 text-amber-900",
-  MEDIUM: "border-amber-300 bg-amber-50 text-amber-900",
-  HIGH: "border-red-300 bg-red-50 text-red-900",
-};
-
-const KIND_LABEL: Record<BottleneckKind, string> = {
-  STALLED_TASK: t.bottleneck.stalled,
-  OVERLOADED_MEMBER: t.bottleneck.overloaded,
-  BLOCKING_DEPENDENCY: t.bottleneck.blocking,
-  OTHER: t.bottleneck.other,
-};
-
-export function BottleneckAlert({
-  bottleneck,
-  onOpenTask,
-}: {
-  bottleneck: Bottleneck;
-  onOpenTask?: (taskId: number) => void;
-}) {
-  return (
-    <div role="note" className={`rounded-xl border px-3 py-2.5 text-sm ${SEVERITY_STYLE[bottleneck.severity]}`}>
-      <p className="flex items-start gap-2">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <span>
-          <strong className="font-semibold">
-            {KIND_LABEL[bottleneck.kind]}
-            {bottleneck.severity === "HIGH" && ` · ${t.bottleneck.high}`}:
-          </strong>{" "}
-          {bottleneck.description}
-        </span>
-      </p>
-      {(bottleneck.tasks.length > 0 || bottleneck.members.length > 0) && (
-        <ul className="mt-2 flex flex-wrap gap-1.5 pl-6" aria-label={t.bottleneck.involved}>
-          {bottleneck.members.map((member) => (
-            <li key={`u-${member.id}`} className="inline-flex items-center gap-1 rounded-md bg-white/80 px-2 py-0.5 text-xs">
-              <UserRound className="size-3" aria-hidden="true" /> {member.username}
-            </li>
-          ))}
-          {bottleneck.tasks.map((task) => (
-            <li key={`t-${task.id}`}>
-              {onOpenTask ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenTask(task.id)}
-                  className="inline-flex items-center gap-1 rounded-md bg-white/80 px-2 py-0.5 text-xs underline-offset-2 hover:underline"
-                >
-                  <Link2 className="size-3" aria-hidden="true" />
-                  {fillTemplate(t.taskSource, { id: task.id, title: task.title })}
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-md bg-white/80 px-2 py-0.5 text-xs">
-                  <Link2 className="size-3" aria-hidden="true" />
-                  {fillTemplate(t.taskSource, { id: task.id, title: task.title })}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
 

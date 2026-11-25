@@ -39,3 +39,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Rolagem horizontal sem barra visível (abas e seletores em telas estreitas). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

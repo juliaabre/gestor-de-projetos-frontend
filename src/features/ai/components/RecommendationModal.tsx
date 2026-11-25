@@ -10,13 +10,13 @@ import util from "@/lib/util.json";
 import { Avatar } from "@/features/projects/components/Avatar";
 import type { TeamMember } from "@/features/projects/types";
 import { taskToInput } from "@/features/tasks/mappers";
-import { updateTask } from "@/features/tasks/services/taskService";
+import { getTask, updateTask } from "@/features/tasks/services/taskService";
 import type { Task } from "@/features/tasks/types";
 import { ComplexityBadge, TechList } from "@/features/tasks/components/TaskBadges";
 import { recommendAssignees, registerDecision } from "../services/aiService";
 import { aiFailure, type AiState } from "../state";
 import type { RecommendationResult } from "../types";
-import { AiBadge, AiUnavailable, ScoreBar, SourceChips } from "./AiShared";
+import { AiBadge, AiNotice, AiUnavailable, ScoreBar, SourceChips } from "./AiShared";
 
 const t = util.ai.recommendation;
 const OTHER = "other";
@@ -31,7 +31,7 @@ export function RecommendationModal({
   task: Task;
   team: TeamMember[];
   onClose: () => void;
-  /** `warning` indica que a atribuição foi salva, mas a decisão não foi registrada. */
+  /** `warning` indica que a atribuição foi salva, mas algo secundário falhou. */
   onAssigned: (task: Task, assignee: TeamMember, warning?: string) => void;
   onRejected: () => void;
 }) {
@@ -61,7 +61,11 @@ export function RecommendationModal({
 
   useEffect(load, [load]);
 
-  const result = state.status === "success" ? state.data : null;
+  const nameOf = (userId: number) => team.find((member) => member.id === userId)?.username ?? `#${userId}`;
+  const result =
+    state.status === "success"
+      ? { ...state.data, items: state.data.items.map((item) => ({ ...item, username: item.username ?? nameOf(item.userId) })) }
+      : null;
   const top = result?.items[0] ?? null;
   const rankedIds = new Set(result?.items.map((item) => item.userId) ?? []);
   const others = team.filter((member) => !rankedIds.has(member.id));
@@ -69,35 +73,35 @@ export function RecommendationModal({
   const rankedChoice = result?.items.find((item) => item.userId === chosenId);
   const chosen: TeamMember | null =
     team.find((member) => member.id === chosenId) ??
-    (rankedChoice ? { id: rankedChoice.userId, username: rankedChoice.username, email: "" } : null);
+    (rankedChoice ? { id: rankedChoice.userId, username: rankedChoice.username ?? nameOf(rankedChoice.userId), email: "" } : null);
 
+  /**
+   * Com recomendação, a decisão vai ao backend, que faz a atribuição (ACEITA
+   * para o primeiro do ranking, AJUSTADA para outro integrante). Sem IA, a
+   * atribuição é manual, editando a tarefa.
+   */
   const assign = async () => {
     if (!chosen) return;
     setPending(true);
     setError("");
-    let saved: Task;
     try {
-      saved = await updateTask(task.id, taskToInput(task, { assigneeId: chosen.id }));
-    } catch (err) {
-      setError(getErrorMessage(err, t.assignError));
-      setPending(false);
-      return;
-    }
-    let warning: string | undefined;
-    if (result) {
-      try {
+      let saved: Task;
+      if (result) {
         await registerDecision({
           taskId: task.id,
           recommendationId: result.recommendationId,
           decision: top && top.userId === chosen.id ? "ACCEPTED" : "ADJUSTED",
-          recommendedUserId: top?.userId ?? null,
           chosenUserId: chosen.id,
         });
-      } catch {
-        warning = t.decisionNotRecorded;
+        saved = { ...(await getTask(task.id)), dependencyIds: task.dependencyIds };
+      } else {
+        saved = await updateTask(task.id, taskToInput(task, { assigneeId: chosen.id }));
       }
+      onAssigned(saved, chosen);
+    } catch (err) {
+      setError(getErrorMessage(err, t.assignError));
+      setPending(false);
     }
-    onAssigned(saved, chosen, warning);
   };
 
   const reject = async () => {
@@ -109,9 +113,7 @@ export function RecommendationModal({
         taskId: task.id,
         recommendationId: result.recommendationId,
         decision: "REJECTED",
-        recommendedUserId: top?.userId ?? null,
-        chosenUserId: null,
-        reason: reason.trim(),
+        note: reason.trim(),
       });
       onRejected();
     } catch (err) {
@@ -175,10 +177,8 @@ export function RecommendationModal({
             <legend className="mb-2 flex w-full flex-wrap items-center gap-2 text-sm font-medium text-slate-700">
               {t.ranking} <AiBadge />
             </legend>
-            {result.fallback && (
-              <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                {t.fallback}
-              </p>
+            {(result.fallback || result.notice) && (
+              <AiNotice answer={{ fallback: result.fallback, notice: result.notice ?? t.fallback }} />
             )}
             <ol className="flex flex-col gap-2">
               {result.items.map((item, index) => {
@@ -200,7 +200,7 @@ export function RecommendationModal({
                           className="size-4 accent-blue-600"
                         />
                         <span className="text-xs font-semibold text-slate-500">#{index + 1}</span>
-                        <Avatar name={item.username} className="size-7 text-[10px]" />
+                        <Avatar name={item.username ?? "?"} className="size-7 text-[10px]" />
                         <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">{item.username}</span>
                         <span className={`text-sm font-semibold ${index === 0 ? "text-blue-700" : "text-slate-600"}`}>
                           {item.score}%
@@ -209,17 +209,6 @@ export function RecommendationModal({
                       <div className="mt-2 pl-7">
                         <ScoreBar score={item.score} highlight={index === 0} />
                         {item.justification && <p className="mt-2 text-sm text-slate-700">{item.justification}</p>}
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-600">
-                          {item.currentLoad != null && (
-                            <span>{fillTemplate(t.load, { count: item.currentLoad })}</span>
-                          )}
-                          {item.skills.length > 0 && (
-                            <span className="flex flex-wrap items-center gap-1">
-                              <span>{t.skills}:</span>
-                              <TechList technologies={item.skills} />
-                            </span>
-                          )}
-                        </div>
                         {item.sources.length > 0 && (
                           <details className="mt-2 text-xs">
                             <summary className="cursor-pointer font-medium text-slate-600 hover:text-slate-900">
@@ -283,7 +272,7 @@ export function RecommendationModal({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={2}
-                maxLength={500}
+                maxLength={2000}
                 placeholder={t.rejectPlaceholder}
                 className={`${inputClass} resize-y py-2 text-sm`}
               />

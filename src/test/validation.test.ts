@@ -75,9 +75,15 @@ describe("validação de tarefa", () => {
   });
 
   it("limita tecnologias e o tamanho dos textos", () => {
-    const tooMany = Array.from({ length: 16 }, (_, i) => `tec${i}`);
+    const tooMany = Array.from({ length: 31 }, (_, i) => `tec${i}`);
     expect(errorsOf(taskSchema.safeParse({ ...validTask, technologies: tooMany })).technologies).toBeTruthy();
     expect(errorsOf(taskSchema.safeParse({ ...validTask, content: "x".repeat(5001) })).content).toBeTruthy();
+    expect(errorsOf(taskSchema.safeParse({ ...validTask, requirements: "x".repeat(10_001) })).requirements).toBeTruthy();
+  });
+
+  it("aceita complexidade de 1 a 5 ou vazia", () => {
+    expect(taskSchema.safeParse({ ...validTask, complexity: "5" }).success).toBe(true);
+    expect(taskSchema.safeParse({ ...validTask, complexity: "6" }).success).toBe(false);
   });
 
   it("aceita coluna personalizada como status", () => {

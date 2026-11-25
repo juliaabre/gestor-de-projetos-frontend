@@ -4,29 +4,48 @@ import { inputClass, smallButtonClass } from "@/components/ui";
 import util from "@/lib/util.json";
 import { generateDescription } from "../services/aiService";
 import { aiFailure, type AiState } from "../state";
-import type { DescriptionSuggestion } from "../types";
-import { AiBadge, AiUnavailable, SourceChips } from "./AiShared";
+import type { AiAnswer } from "../types";
+import { AiBadge, AiNotice, AiUnavailable, SourceChips } from "./AiShared";
 
 const t = util.ai.description;
+
+/** Monta a instrução enviada como `pergunta` (até 4000 caracteres no backend). */
+export function buildDescriptionPrompt(input: {
+  title: string;
+  current: string;
+  instruction: string;
+  requirements?: string;
+}): string {
+  const parts = [
+    input.current
+      ? `Refine a descrição da tarefa "${input.title}".`
+      : `Gere uma descrição para a tarefa "${input.title}".`,
+  ];
+  if (input.current) parts.push(`Descrição atual: ${input.current.slice(0, 2500)}`);
+  if (input.requirements) parts.push(`Requisitos: ${input.requirements.slice(0, 800)}`);
+  if (input.instruction) parts.push(`Instrução: ${input.instruction}`);
+  return parts.join("\n").slice(0, 4000);
+}
 
 /**
  * Gera ou refina a descrição de uma tarefa. A sugestão fica numa área de
  * revisão e só vai para o formulário quando o usuário aceita.
  */
 export function DescriptionAssistant({
-  projectId,
   taskId,
   getTitle,
   getCurrent,
+  getRequirements,
   onAccept,
 }: {
-  projectId: number;
+  /** O backend gera descrições só para tarefas já salvas. */
   taskId?: number;
   getTitle: () => string;
   getCurrent: () => string;
+  getRequirements?: () => string;
   onAccept: (description: string) => void;
 }) {
-  const [state, setState] = useState<AiState<DescriptionSuggestion>>({ status: "idle" });
+  const [state, setState] = useState<AiState<AiAnswer>>({ status: "idle" });
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -41,14 +60,16 @@ export function DescriptionAssistant({
     setEditing(false);
     setState({ status: "loading" });
     try {
-      const data = await generateDescription({
-        projectId,
-        taskId,
-        title,
-        currentDescription: getCurrent().trim(),
-        instruction: instruction.trim(),
-      });
-      setDraft(data.description);
+      const data = await generateDescription(
+        taskId!,
+        buildDescriptionPrompt({
+          title,
+          current: getCurrent().trim(),
+          instruction: instruction.trim(),
+          requirements: getRequirements?.().trim(),
+        }),
+      );
+      setDraft(data.text);
       setState({ status: "success", data });
     } catch (error) {
       setState(aiFailure(error, t.error));
@@ -62,6 +83,14 @@ export function DescriptionAssistant({
   };
 
   const loading = state.status === "loading";
+
+  if (taskId == null) {
+    return (
+      <p className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/40 px-3 py-2 text-xs text-slate-600">
+        <Sparkles className="size-4 shrink-0 text-violet-600" aria-hidden="true" /> {t.saveFirst}
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/40 p-3">
@@ -109,7 +138,7 @@ export function DescriptionAssistant({
           ) : (
             <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{draft}</p>
           )}
-          {state.data.justification && <p className="text-xs text-slate-500">{state.data.justification}</p>}
+          <AiNotice answer={state.data} />
           {state.data.sources.length > 0 && <SourceChips sources={state.data.sources} />}
           <div className="flex flex-wrap justify-end gap-2">
             <button type="button" onClick={discard} className={smallButtonClass}>

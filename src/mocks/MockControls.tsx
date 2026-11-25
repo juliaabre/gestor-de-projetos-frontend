@@ -6,11 +6,11 @@ import { getAiMode, setAiMode, type AiMode } from "./settings";
 
 const AI_MODES: { value: AiMode; label: string; hint: string }[] = [
   { value: "normal", label: "Funcionando", hint: "Todas as funções de IA respondem." },
-  { value: "fallback", label: "Só alocação simples", hint: "LLM fora: recomendação por pontuação simples; demais funções indisponíveis." },
-  { value: "offline", label: "Fora do ar", hint: "Todas as rotas /api/ia respondem 503." },
+  { value: "fallback", label: "Sem síntese (alternativa)", hint: "Como o backend sem a chave do Gemini: respostas extrativas com aviso e pontuação calculada no servidor." },
+  { value: "offline", label: "Fora do ar", hint: "Rotas /api/ia e a indexação de documentos respondem 503." },
 ];
 
-const ROLE_LABEL: Record<string, string> = { ADMINISTRADOR: "Admin", GERENTE: "Gerente", MEMBRO: "Membro" };
+const ROLE_LABEL: Record<string, string> = { ADMINISTRADOR: "Admin", MEMBRO: "Membro" };
 
 /** Painel flutuante do modo de simulação: troca de usuário, estado da IA e reset dos dados. */
 export function MockControls() {
@@ -74,7 +74,10 @@ export function MockControls() {
               </span>
               <span className="flex shrink-0 items-center gap-1 text-[11px] text-slate-600">
                 {switching === u.email && <LoaderCircle className="size-3 animate-spin" />}
-                {user?.email === u.email ? "atual" : u.roles.map((r) => ROLE_LABEL[r]).join(" + ")}
+                {user?.email === u.email ? "atual" : [
+                      ...u.roles.filter((r) => r !== "MEMBRO").map((r) => ROLE_LABEL[r]),
+                      ...db.projects.filter((p) => p.gerenteId === u.id && !p.arquivado).map((p) => `gerente de ${p.nome}`),
+                    ].join(" · ") || ROLE_LABEL.MEMBRO}
               </span>
             </button>
           </li>

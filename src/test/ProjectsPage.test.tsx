@@ -33,6 +33,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     description: "Plataforma com IA",
     archived: false,
     creatorId: 1,
+    managerId: 1,
     team: [
       { id: 1, username: "ana", email: "ana@ex.com" },
       { id: 2, username: "bia", email: "bia@ex.com" },
@@ -41,6 +42,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     taskIds: [],
     myRole: "MANAGER",
     canManage: true,
+    canAddMembers: true,
     ...overrides,
   };
 }

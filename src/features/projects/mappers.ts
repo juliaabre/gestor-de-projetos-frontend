@@ -19,6 +19,7 @@ export function toProject(dto: ProjectResponseDto): Project {
     description: dto.descricao ?? null,
     archived: Boolean(dto.arquivado),
     creatorId: dto.criadorId ?? null,
+    managerId: dto.gerenteId ?? dto.criadorId ?? null,
     team,
     teamIds: dto.equipeIds ?? team.map((member) => member.id),
     taskIds: dto.tarefasIds ?? [],
@@ -27,6 +28,7 @@ export function toProject(dto: ProjectResponseDto): Project {
       ? (ROLE_FROM_API[dto.meuPapelNoProjeto] ?? null)
       : null,
     canManage: Boolean(dto.podeGerenciar),
+    canAddMembers: Boolean(dto.podeAdicionarMembros ?? dto.podeGerenciar),
   };
 }
 
@@ -35,5 +37,6 @@ export function toProjectRequest(input: ProjectInput): ProjectRequestDto {
     nome: input.name,
     descricao: input.description,
     equipeIds: input.teamIds,
+    gerenteId: input.managerId,
   };
 }

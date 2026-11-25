@@ -4,8 +4,10 @@ import util from "@/lib/util.json";
 import { getProject } from "@/features/projects/services/projectService";
 import type { Project } from "@/features/projects/types";
 import { DEFAULT_COLUMNS } from "../mappers";
+import { customColumnsEnabled } from "../board";
 import {
   listColumns,
+  listDependencies,
   listProjectTasks,
   moveTask as moveTaskRequest,
 } from "../services/taskService";
@@ -24,6 +26,7 @@ type State =
   | ({ status: "success" } & BoardData);
 
 async function loadColumns(projectId: number) {
+  if (!customColumnsEnabled()) return { columns: DEFAULT_COLUMNS, columnsAvailable: false };
   try {
     const columns = await listColumns(projectId);
     return { columns: columns.length ? columns : DEFAULT_COLUMNS, columnsAvailable: true };
@@ -31,6 +34,15 @@ async function loadColumns(projectId: number) {
     if (isUnavailable(error)) return { columns: DEFAULT_COLUMNS, columnsAvailable: false };
     throw error;
   }
+}
+
+/**
+ * O backend devolve as dependências em rota própria por tarefa. Uma falha
+ * aqui não impede o quadro de abrir: a tarefa só fica sem o indicador.
+ */
+async function withDependencies(tasks: Task[]): Promise<Task[]> {
+  const lists = await Promise.all(tasks.map((task) => listDependencies(task.id).catch(() => [])));
+  return tasks.map((task, index) => ({ ...task, dependencyIds: lists[index] }));
 }
 
 export function useProjectBoard(projectId: number) {
@@ -42,7 +54,7 @@ export function useProjectBoard(projectId: number) {
   const fetchAll = useCallback(async (): Promise<BoardData> => {
     const [project, tasks, columns] = await Promise.all([
       getProject(projectId),
-      listProjectTasks(projectId),
+      listProjectTasks(projectId).then(withDependencies),
       loadColumns(projectId),
     ]);
     return { project, tasks, ...columns };
@@ -106,6 +118,25 @@ export function useProjectBoard(projectId: number) {
     [update],
   );
 
+  const setColumns = useCallback(
+    (columns: BoardColumn[]) => update(() => ({ columns })),
+    [update],
+  );
+
+  /** Remove a coluna e leva as tarefas dela para `moveTo`, como o servidor fez. */
+  const removeColumn = useCallback(
+    (column: BoardColumn, moveTo?: TaskStatus) =>
+      update(({ columns, tasks }) => ({
+        columns: columns
+          .filter((c) => c.id !== column.id)
+          .map((c, index) => ({ ...c, order: index })),
+        tasks: moveTo
+          ? tasks.map((t) => (t.status === column.status ? { ...t, status: moveTo } : t))
+          : tasks,
+      })),
+    [update],
+  );
+
   const moveTask = useCallback(
     async (taskId: number, status: TaskStatus): Promise<Task | null> => {
       const current = stateRef.current;
@@ -138,5 +169,5 @@ export function useProjectBoard(projectId: number) {
     [update, upsertTask],
   );
 
-  return { state, reload, upsertTask, removeTask, upsertColumn, moveTask, movingIds };
+  return { state, reload, upsertTask, removeTask, upsertColumn, setColumns, removeColumn, moveTask, movingIds };
 }

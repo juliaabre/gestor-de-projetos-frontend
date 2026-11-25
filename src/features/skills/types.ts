@@ -1,4 +1,6 @@
+/** O backend aceita texto livre; estes são os valores sugeridos na tela. */
 export type ActivityType =
+  | (string & {})
   | "FRONTEND"
   | "BACKEND"
   | "MOBILE"
@@ -9,7 +11,8 @@ export type ActivityType =
   | "DADOS"
   | "GESTAO";
 
-export type ExperienceLevel = "INICIANTE" | "INTERMEDIARIO" | "AVANCADO" | "ESPECIALISTA";
+/** Nível de 1 a 5, como no backend. */
+export type ExperienceLevel = 1 | 2 | 3 | 4 | 5;
 
 export const ACTIVITY_TYPES: readonly { value: ActivityType; label: string }[] = [
   { value: "FRONTEND", label: "Front-end" },
@@ -24,12 +27,17 @@ export const ACTIVITY_TYPES: readonly { value: ActivityType; label: string }[] =
 ];
 
 export const EXPERIENCE_LEVELS: readonly { value: ExperienceLevel; label: string }[] = [
-  { value: "INICIANTE", label: "Iniciante" },
-  { value: "INTERMEDIARIO", label: "Intermediário" },
-  { value: "AVANCADO", label: "Avançado" },
-  { value: "ESPECIALISTA", label: "Especialista" },
+  { value: 1, label: "Iniciante" },
+  { value: 2, label: "Básico" },
+  { value: 3, label: "Intermediário" },
+  { value: 4, label: "Avançado" },
+  { value: 5, label: "Especialista" },
 ];
 
+/**
+ * Na tela, uma competência agrupa várias tecnologias com o mesmo tipo de
+ * atividade e nível. No backend cada tecnologia é um item.
+ */
 export interface Skill {
   id: number;
   userId: number;
@@ -44,23 +52,16 @@ export interface SkillInput {
   level: ExperienceLevel;
 }
 
+/** `CompetenciaRequest` do backend (usado no GET e no PUT da lista completa). */
 export interface SkillDto {
-  id: number;
-  usuarioId?: number | null;
-  tecnologias?: string[] | null;
-  tipoAtividade: ActivityType;
-  nivelExperiencia: ExperienceLevel;
+  tecnologia: string;
+  tipoAtividade: string;
+  nivel: number;
 }
 
-export interface SkillRequestDto {
-  tecnologias: string[];
-  tipoAtividade: ActivityType;
-  nivelExperiencia: ExperienceLevel;
-}
-
-export function labelOf<T extends string>(
+export function labelOf<T extends string | number>(
   options: readonly { value: T; label: string }[],
   value: T | null | undefined,
 ): string {
-  return options.find((option) => option.value === value)?.label ?? value ?? "";
+  return options.find((option) => option.value === value)?.label ?? (value != null ? String(value) : "");
 }

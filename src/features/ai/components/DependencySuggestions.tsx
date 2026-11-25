@@ -9,8 +9,8 @@ import { dependentsOf } from "@/features/tasks/board";
 import type { Task } from "@/features/tasks/types";
 import { suggestDependencies } from "../services/aiService";
 import { aiFailure, type AiState } from "../state";
-import type { DependencySuggestion } from "../types";
-import { AiBadge, AiUnavailable } from "./AiShared";
+import type { AiAnswer, DependencySuggestion } from "../types";
+import { AiBadge, AiNotice, AiText, AiUnavailable } from "./AiShared";
 
 const t = util.ai.dependencies;
 
@@ -27,7 +27,9 @@ export function DependencySuggestions({
   tasks: Task[];
   onRegister: (dependencyIds: number[]) => Promise<void>;
 }) {
-  const [state, setState] = useState<AiState<DependencySuggestion[]>>({ status: "idle" });
+  const [state, setState] = useState<AiState<{ answer: AiAnswer; items: DependencySuggestion[] }>>({
+    status: "idle",
+  });
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -37,17 +39,17 @@ export function DependencySuggestions({
     setSelected(new Set());
     setError("");
     try {
-      const data = await suggestDependencies(task.id);
+      const { answer, suggestions } = await suggestDependencies(task.id);
       // Descarta sugestões inválidas: a própria tarefa, já confirmadas, inexistentes ou que criariam ciclo.
       const blocked = dependentsOf(task.id, tasks);
-      const valid = data.filter(
+      const valid = suggestions.filter(
         (s) =>
           s.taskId !== task.id &&
           !task.dependencyIds.includes(s.taskId) &&
           !blocked.has(s.taskId) &&
           tasks.some((candidate) => candidate.id === s.taskId),
       );
-      setState({ status: "success", data: valid });
+      setState({ status: "success", data: { answer, items: valid } });
     } catch (err) {
       setState(aiFailure(err, t.error));
     }
@@ -110,14 +112,23 @@ export function DependencySuggestions({
           </button>
         </p>
       )}
-      {state.status === "success" && state.data.length === 0 && (
+      {state.status === "success" && (
+        <details className="rounded-lg bg-white px-3 py-2">
+          <summary className="cursor-pointer text-xs font-medium text-slate-600">{t.answer}</summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <AiNotice answer={state.data.answer} />
+            <AiText text={state.data.answer.text} />
+          </div>
+        </details>
+      )}
+      {state.status === "success" && state.data.items.length === 0 && (
         <p className="text-sm text-slate-600">{t.empty}</p>
       )}
-      {state.status === "success" && state.data.length > 0 && (
+      {state.status === "success" && state.data.items.length > 0 && (
         <>
           <FormError message={error} />
           <ul className="flex flex-col gap-1.5" aria-label={t.listLabel}>
-            {state.data.map((suggestion) => {
+            {state.data.items.map((suggestion) => {
               const checked = selected.has(suggestion.taskId);
               return (
                 <li key={suggestion.taskId}>
@@ -145,7 +156,7 @@ export function DependencySuggestions({
                         )}
                       </span>
                       {suggestion.justification && (
-                        <span className="mt-0.5 block text-xs text-slate-600">{suggestion.justification}</span>
+                        <span className="mt-0.5 line-clamp-2 block text-xs text-slate-600">{suggestion.justification}</span>
                       )}
                     </span>
                   </label>

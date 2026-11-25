@@ -27,21 +27,25 @@ import {
 const t = util.skills.form;
 
 const API_FIELD_TO_FORM: Record<string, keyof SkillFormData> = {
-  tecnologias: "technologies",
+  competencias: "technologies",
+  tecnologia: "technologies",
   tipoAtividade: "activityType",
-  nivelExperiencia: "level",
+  nivel: "level",
 };
 
 export function SkillFormModal({
   userId,
   skill,
+  current,
   onClose,
   onSaved,
 }: {
   userId: number;
   skill?: Skill;
+  /** Lista atual do integrante: o backend grava a lista completa. */
+  current: Skill[];
   onClose: () => void;
-  onSaved: (skill: Skill, mode: "created" | "updated") => void;
+  onSaved: (skills: Skill[], mode: "created" | "updated") => void;
 }) {
   const isEdit = Boolean(skill);
   const [serverError, setServerError] = useState("");
@@ -56,7 +60,7 @@ export function SkillFormModal({
     defaultValues: {
       technologies: skill?.technologies ?? [],
       activityType: skill?.activityType ?? "",
-      level: skill?.level ?? "",
+      level: skill?.level != null ? String(skill.level) : "",
     },
   });
 
@@ -65,12 +69,12 @@ export function SkillFormModal({
     const input = {
       technologies: data.technologies,
       activityType: data.activityType as ActivityType,
-      level: data.level as ExperienceLevel,
+      level: Number(data.level) as ExperienceLevel,
     };
     try {
       const saved = skill
-        ? await updateSkill(userId, skill.id, input)
-        : await createSkill(userId, input);
+        ? await updateSkill(userId, skill.id, input, current)
+        : await createSkill(userId, input, current);
       onSaved(saved, isEdit ? "updated" : "created");
     } catch (error) {
       for (const [apiField, message] of Object.entries(getFieldErrors(error))) {
@@ -96,6 +100,8 @@ export function SkillFormModal({
               onChange={field.onChange}
               placeholder={t.technologiesPlaceholder}
               error={fieldState.error?.message}
+              maxTags={50}
+              maxLength={100}
             />
           )}
         />
@@ -110,8 +116,8 @@ export function SkillFormModal({
             >
               <option value="">{t.select}</option>
               {ACTIVITY_TYPES.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+                <option key={o.value} value={String(o.value)}>
+                  {o.value} · {o.label}
                 </option>
               ))}
             </select>
@@ -123,8 +129,8 @@ export function SkillFormModal({
             <select {...register("level")} aria-invalid={Boolean(errors.level)} className={`${inputClass} h-11`}>
               <option value="">{t.select}</option>
               {EXPERIENCE_LEVELS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+                <option key={o.value} value={String(o.value)}>
+                  {o.value} · {o.label}
                 </option>
               ))}
             </select>

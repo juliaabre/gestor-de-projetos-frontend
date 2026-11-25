@@ -21,22 +21,20 @@ export function PriorityBadge({ priority }: { priority: TaskPriority }) {
   );
 }
 
-const COMPLEXITY_BARS: Record<TaskComplexity, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
-
 export function ComplexityBadge({ complexity }: { complexity: TaskComplexity | null }) {
   if (!complexity) return null;
-  const label = TASK_COMPLEXITIES.find((c) => c.value === complexity)?.label ?? complexity;
-  const bars = COMPLEXITY_BARS[complexity];
+  const label = TASK_COMPLEXITIES.find((c) => c.value === complexity)?.label ?? String(complexity);
+  const bars = complexity;
   return (
     <span className="flex items-center gap-1 text-xs text-slate-600">
       <Gauge className="size-3.5 text-slate-500" aria-hidden="true" />
-      {fillTemplate(t.complexity, { value: label })}
+      {fillTemplate(t.complexity, { value: `${complexity}/5 · ${label}` })}
       <span aria-hidden="true" className="ml-0.5 flex items-end gap-px">
-        {[1, 2, 3].map((n) => (
+        {[1, 2, 3, 4, 5].map((n) => (
           <span
             key={n}
             className={`w-1 rounded-sm ${n <= bars ? "bg-slate-500" : "bg-slate-200"}`}
-            style={{ height: 4 + n * 2 }}
+            style={{ height: 3 + n * 1.5 }}
           />
         ))}
       </span>

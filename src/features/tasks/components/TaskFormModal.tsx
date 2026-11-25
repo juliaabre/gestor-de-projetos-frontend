@@ -20,6 +20,7 @@ import { DescriptionAssistant } from "@/features/ai/components/DescriptionAssist
 import { dependentsOf } from "../board";
 import { taskSchema, type TaskFormData } from "../schemas/taskSchema";
 import { createTask, updateTask } from "../services/taskService";
+import { unsavedTaskFields } from "../board";
 import {
   TASK_COMPLEXITIES,
   TASK_PRIORITIES,
@@ -62,7 +63,8 @@ export function TaskFormModal({
   team: TeamMember[];
   tasks: Task[];
   onClose: () => void;
-  onSaved: (task: Task, mode: "created" | "updated") => void;
+  /** `unsaved` lista os campos que o servidor não gravou. */
+  onSaved: (task: Task, mode: "created" | "updated", unsaved: string[]) => void;
 }) {
   const isEdit = Boolean(task);
   const [serverError, setServerError] = useState("");
@@ -85,7 +87,7 @@ export function TaskFormModal({
       technologies: task?.technologies ?? [],
       status: task?.status ?? defaultStatus ?? columns[0]?.status ?? "TODO",
       priority: task?.priority ?? "MEDIUM",
-      complexity: task?.complexity ?? "",
+      complexity: task?.complexity != null ? (String(task.complexity) as TaskFormData["complexity"]) : "",
       dueDate: task?.dueDate ?? "",
       assigneeId: task?.assigneeId != null ? String(task.assigneeId) : "",
       dependencyIds: task?.dependencyIds ?? [],
@@ -115,7 +117,7 @@ export function TaskFormModal({
       technologies: data.technologies,
       status: data.status,
       priority: data.priority,
-      complexity: (data.complexity || null) as TaskComplexity | null,
+      complexity: data.complexity ? (Number(data.complexity) as TaskComplexity) : null,
       dueDate: data.dueDate || null,
       assigneeId: data.assigneeId ? Number(data.assigneeId) : null,
       dependencyIds: data.dependencyIds,
@@ -123,7 +125,7 @@ export function TaskFormModal({
     };
     try {
       const saved = task ? await updateTask(task.id, input) : await createTask(input);
-      onSaved(saved, isEdit ? "updated" : "created");
+      onSaved(saved, isEdit ? "updated" : "created", unsavedTaskFields(input, saved));
     } catch (error) {
       for (const [apiField, message] of Object.entries(getFieldErrors(error))) {
         const field = API_FIELD_TO_FORM[apiField];
@@ -165,10 +167,10 @@ export function TaskFormModal({
           {errors.content && <span className={fieldErrorClass}>{errors.content.message}</span>}
         </label>
         <DescriptionAssistant
-          projectId={projectId}
           taskId={task?.id}
           getTitle={() => getValues("title")}
           getCurrent={() => getValues("content")}
+          getRequirements={() => getValues("requirements")}
           onAccept={(description) =>
             setValue("content", description, { shouldDirty: true, shouldValidate: true })
           }
@@ -198,6 +200,8 @@ export function TaskFormModal({
               onChange={field.onChange}
               placeholder={t.technologiesPlaceholder}
               error={fieldState.error?.message}
+              maxTags={30}
+              maxLength={100}
             />
           )}
         />
@@ -245,8 +249,8 @@ export function TaskFormModal({
             <select {...register("complexity")} aria-invalid={Boolean(errors.complexity)} className={`${inputClass} h-11`}>
               <option value="">{t.noComplexity}</option>
               {TASK_COMPLEXITIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
+                <option key={c.value} value={String(c.value)}>
+                  {c.value} · {c.label}
                 </option>
               ))}
             </select>

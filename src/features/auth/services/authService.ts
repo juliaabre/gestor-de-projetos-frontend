@@ -50,11 +50,31 @@ export async function resolveUser(
 ): Promise<User> {
   const email = decodeJwt(token)?.sub ?? emailFallback;
   const roles = extractRoles(token);
+  // O próprio perfil aparece na equipe dos projetos em que o usuário participa
+  // (rota liberada a todos). O diretório de usuários só serve de alternativa,
+  // pois o backend o libera apenas a gerentes de projeto e administradores.
+  try {
+    const member = await findSelfInProjects(email, token);
+    if (member) return { id: member.id, username: member.username, email: member.email, roles };
+  } catch {}
   try {
     const profile = await findUserByEmail(email, token);
     if (profile) return { ...profile, roles };
   } catch {}
   return { email, username: email.split("@")[0], roles };
+}
+
+async function findSelfInProjects(email: string, token: string) {
+  const { data } = await api.get<{ equipe?: { id: number; username: string; email: string }[] }[]>(
+    endpoints.projects.base,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const target = email.toLowerCase();
+  for (const project of data) {
+    const member = project.equipe?.find((m) => m.email?.toLowerCase() === target);
+    if (member) return member;
+  }
+  return null;
 }
 
 async function authenticate(

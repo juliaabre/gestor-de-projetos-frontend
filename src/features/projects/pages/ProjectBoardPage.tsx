@@ -15,6 +15,7 @@ import { TeamPanel } from "@/features/skills/components/TeamPanel";
 import { taskToInput } from "@/features/tasks/mappers";
 import { resolveColumns } from "@/features/tasks/board";
 import { ColumnFormModal } from "@/features/tasks/components/ColumnFormModal";
+import { ColumnDeleteDialog } from "@/features/tasks/components/ColumnDeleteDialog";
 import { KanbanBoard } from "@/features/tasks/components/KanbanBoard";
 import { TaskDetailsModal } from "@/features/tasks/components/TaskDetailsModal";
 import { TaskFormModal } from "@/features/tasks/components/TaskFormModal";
@@ -38,6 +39,7 @@ type View =
   | { kind: "form"; task?: Task; status?: TaskStatus; returnTo?: number }
   | { kind: "delete"; task: Task }
   | { kind: "column"; column?: BoardColumn }
+  | { kind: "deleteColumn"; column: BoardColumn }
   | { kind: "recommend"; task: Task; returnTo?: number }
   | null;
 
@@ -50,7 +52,7 @@ export function ProjectBoardPage() {
     (Object.entries(TAB_PARAM).find(([, value]) => value && value === searchParams.get("aba"))?.[0] as Tab) ??
     "board";
 
-  const { state, reload, upsertTask, removeTask, upsertColumn, moveTask, movingIds } =
+  const { state, reload, upsertTask, removeTask, upsertColumn, setColumns, removeColumn, moveTask, movingIds } =
     useProjectBoard(projectId);
   const { feedback, success, error, clear } = useFeedback();
   const [view, setView] = useState<View>(null);
@@ -161,7 +163,7 @@ export function ProjectBoardPage() {
         </div>
         {tab === "board" && (
           <div className="flex flex-col gap-2 sm:flex-row">
-            {permissions.canManageColumns && columnsAvailable && (
+            {permissions.canManageColumns && (
               <button type="button" onClick={() => setView({ kind: "column" })} className={secondaryButtonClass}>
                 <Columns3 className="size-4" /> {t.newColumn}
               </button>
@@ -175,7 +177,7 @@ export function ProjectBoardPage() {
         )}
       </div>
 
-      <div role="tablist" aria-label={t.tabs.label} onKeyDown={handleTabListKeyDown} className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div role="tablist" aria-label={t.tabs.label} onKeyDown={handleTabListKeyDown} className="mt-6 flex gap-1 overflow-x-auto scrollbar-none shadow-[inset_0_-1px_0_var(--color-slate-200)]">
         {(
           [
             ["board", t.tabs.board, KanbanSquare, tasks.length],
@@ -192,7 +194,7 @@ export function ProjectBoardPage() {
             tabIndex={tab === key ? 0 : -1}
             aria-controls={`project-panel-${key}`}
             onClick={() => setTab(key)}
-            className={`-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium ${
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium ${
               tab === key ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -217,10 +219,15 @@ export function ProjectBoardPage() {
         {tab === "assistant" && (
           <div className="flex flex-col gap-4">
             <FeedbackBanner feedback={view ? null : feedback} onClose={clear} />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-              <SummaryPanel projectId={project.id} onOpenTask={openTaskById} />
+            {permissions.canUseManagerAi ? (
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                <SummaryPanel projectId={project.id} onOpenTask={openTaskById} />
+                <AssistantPanel projectId={project.id} onOpenTask={openTaskById} />
+              </div>
+            ) : (
+              // Resumo e gargalos são funções de gestão (gerente do projeto).
               <AssistantPanel projectId={project.id} onOpenTask={openTaskById} />
-            </div>
+            )}
           </div>
         )}
         {tab === "board" && (
@@ -272,6 +279,7 @@ export function ProjectBoardPage() {
               team={project.team}
               movingIds={movingIds}
               canEditTasks={permissions.canEditTasks}
+              canMoveTasks={permissions.canMoveTasks}
               canManageColumns={permissions.canManageColumns && columnsAvailable}
               onOpenTask={(task) => setView({ kind: "details", taskId: task.id })}
               onMoveTask={handleMove}
@@ -308,7 +316,11 @@ export function ProjectBoardPage() {
           onRegisterDependencies={async (dependencyIds) => {
             const saved = await updateTask(detailsTask.id, taskToInput(detailsTask, { dependencyIds }));
             upsertTask(saved);
-            success(fillTemplate(t.feedback.dependenciesRegistered, { title: saved.title }));
+            if (dependencyIds.some((id) => !saved.dependencyIds.includes(id))) {
+              error(fillTemplate(t.feedback.dependenciesNotSaved, { title: saved.title }));
+            } else {
+              success(fillTemplate(t.feedback.dependenciesRegistered, { title: saved.title }));
+            }
           }}
         />
       )}
@@ -322,7 +334,9 @@ export function ProjectBoardPage() {
             upsertTask(saved);
             setView(view.returnTo ? { kind: "details", taskId: saved.id } : null);
             const message = fillTemplate(t.feedback.assigned, { title: saved.title, name: assignee.username });
-            if (warning) error(`${message} ${warning}`);
+            if (saved.assigneeId !== assignee.id) {
+              error(fillTemplate(t.feedback.assignNotSaved, { title: saved.title, name: assignee.username }));
+            } else if (warning) error(`${message} ${warning}`);
             else success(message);
           }}
           onRejected={() => {
@@ -341,10 +355,14 @@ export function ProjectBoardPage() {
           team={project.team}
           tasks={tasks}
           onClose={() => setView(view.returnTo ? { kind: "details", taskId: view.returnTo } : null)}
-          onSaved={(saved, mode) => {
+          onSaved={(saved, mode, unsaved) => {
             upsertTask(saved);
             setView(view.returnTo ? { kind: "details", taskId: saved.id } : null);
-            success(fillTemplate(mode === "created" ? t.feedback.created : t.feedback.updated, { title: saved.title }));
+            if (unsaved.length) {
+              error(fillTemplate(t.feedback.notSaved, { title: saved.title, fields: unsaved.join(", ") }));
+            } else {
+              success(fillTemplate(mode === "created" ? t.feedback.created : t.feedback.updated, { title: saved.title }));
+            }
           }}
         />
       )}
@@ -371,11 +389,32 @@ export function ProjectBoardPage() {
           projectId={project.id}
           column={view.column}
           columns={columns}
+          available={columnsAvailable}
           onClose={() => setView(null)}
-          onSaved={(column, mode) => {
-            upsertColumn(column);
+          onDelete={view.column ? () => setView({ kind: "deleteColumn", column: view.column! }) : undefined}
+          onSaved={(column, mode, reordered) => {
+            if (reordered) setColumns(reordered);
+            else upsertColumn(column);
             setView(null);
             success(fillTemplate(mode === "created" ? t.feedback.columnCreated : t.feedback.columnUpdated, { name: column.name }));
+          }}
+        />
+      )}
+      {view?.kind === "deleteColumn" && (
+        <ColumnDeleteDialog
+          projectId={project.id}
+          column={view.column}
+          columns={columns}
+          taskCount={tasks.filter((task) => task.status === view.column.status).length}
+          onClose={() => setView({ kind: "column", column: view.column })}
+          onDeleted={(moveTo) => {
+            removeColumn(view.column, moveTo);
+            setView(null);
+            success(
+              moveTo
+                ? fillTemplate(t.feedback.columnDeletedMoved, { name: view.column.name, target: columnName(moveTo) })
+                : fillTemplate(t.feedback.columnDeleted, { name: view.column.name }),
+            );
           }}
         />
       )}

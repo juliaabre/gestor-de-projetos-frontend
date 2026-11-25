@@ -1,10 +1,12 @@
 /**
- * Banco em memória do modo de simulação (`pnpm dev:mock`). Usa o formato JSON
- * do backend (campos em português) para exercitar os mesmos mapeadores da
- * aplicação real. Fica salvo no sessionStorage até "Restaurar dados".
+ * Banco em memória do modo de simulação (`pnpm dev:mock`). Segue o formato
+ * JSON do backend (branch `feat/gerencia-por-projeto`) para exercitar os
+ * mesmos mapeadores da aplicação real. Fica salvo no sessionStorage até
+ * "Restaurar dados".
  */
 
-export type RoleName = "ADMINISTRADOR" | "GERENTE" | "MEMBRO";
+/** Papéis globais: o gerente é definido por projeto (`gerenteId`). */
+export type RoleName = "ADMINISTRADOR" | "MEMBRO";
 
 export interface MockUser {
   id: number;
@@ -19,6 +21,7 @@ export interface MockProject {
   descricao: string | null;
   arquivado: boolean;
   criadorId: number;
+  gerenteId: number;
   equipeIds: number[];
   createdAt: string;
 }
@@ -31,15 +34,17 @@ export interface MockTask {
   tecnologias: string[];
   status: string;
   prioridade: string;
-  complexidade: string | null;
+  complexidade: number | null;
   prazo: string | null;
   responsavelId: number | null;
+  /** Interno da simulação; exposto em `/api/tarefas/{id}/dependencias`. */
   dependenciasIds: number[];
   projetoId: number;
   createdAt: string;
   updatedAt: string;
 }
 
+/** Colunas personalizadas: proposta de contrato ainda não implementada no backend. */
 export interface MockColumn {
   id: number;
   projetoId: number;
@@ -49,85 +54,55 @@ export interface MockColumn {
 }
 
 export interface MockSkill {
-  id: number;
   usuarioId: number;
-  tecnologias: string[];
+  tecnologia: string;
   tipoAtividade: string;
-  nivelExperiencia: string;
+  nivel: number;
 }
 
 export interface MockComment {
   id: number;
   tarefaId: number;
-  conteudo: string;
+  texto: string;
   autorId: number;
-  createdAt: string;
+  criadoEm: string;
 }
 
 export interface MockAttachment {
   id: number;
   tarefaId: number;
-  nomeArquivo: string;
-  tipoConteudo: string;
+  nome: string;
   tamanho: number;
   autorId: number;
-  createdAt: string;
+  criadoEm: string;
 }
 
 export interface MockHistory {
   id: number;
   tarefaId: number;
-  campo: string | null;
-  valorAnterior: string | null;
-  valorNovo: string | null;
-  descricao: string | null;
-  autorId: number | null;
-  createdAt: string;
+  acao: string;
+  atorId: number | null;
+  responsavelId: number | null;
+  status: string | null;
+  criadoEm: string;
 }
 
 export interface MockDocument {
   id: number;
-  nomeArquivo: string;
-  tipoConteudo: string;
-  tamanho: number;
-  projetoId: number | null;
-  /** Momento do envio; o status é derivado do tempo decorrido. */
-  enviadoEm: number;
-  falha: boolean;
-  createdAt: string;
-}
-
-export interface MockRule {
-  id: number;
-  regra: string;
-  ativa: boolean;
-  createdAt: string;
-}
-
-export interface MockTerm {
-  id: number;
-  termo: string;
-  definicao: string;
-  sinonimos: string[];
-}
-
-export interface MockConversation {
-  id: number;
   projetoId: number;
-  usuarioId: number;
-  pergunta: string;
-  resposta: string;
-  fontes: unknown[];
-  gargalos: unknown[];
-  createdAt: string;
+  nome: string;
+  tipo: string;
+  trechos: string[];
+  criadoEm: string;
 }
 
-export interface MockDecision {
+export interface MockRecommendation {
+  id: number;
   tarefaId: number;
-  decisao: string;
-  usuarioEscolhidoId: number | null;
-  motivo?: string;
-  createdAt: string;
+  ranking: { usuarioId: number; pontuacao: number; justificativa: string; fontes: string[] }[];
+  contexto: unknown;
+  decisao: string | null;
+  escolhidoId: number | null;
 }
 
 export interface MockDb {
@@ -141,13 +116,11 @@ export interface MockDb {
   attachments: MockAttachment[];
   history: MockHistory[];
   documents: MockDocument[];
-  rules: MockRule[];
-  terms: MockTerm[];
-  conversations: MockConversation[];
-  decisions: MockDecision[];
+  domain: { regras: string; vocabulario: string };
+  recommendations: MockRecommendation[];
 }
 
-const STORAGE_KEY = "gestor.mock.db";
+const STORAGE_KEY = "gestor.mock.db.v2";
 export const DEMO_PASSWORD = "123456";
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
@@ -160,7 +133,7 @@ function task(partial: Partial<MockTask> & Pick<MockTask, "id" | "titulo" | "pro
     tecnologias: [],
     status: "PENDENTE",
     prioridade: "MEDIA",
-    complexidade: "MEDIA",
+    complexidade: 3,
     prazo: null,
     responsavelId: null,
     dependenciasIds: [],
@@ -170,12 +143,15 @@ function task(partial: Partial<MockTask> & Pick<MockTask, "id" | "titulo" | "pro
   };
 }
 
+const skills = (usuarioId: number, tipoAtividade: string, nivel: number, techs: string[]): MockSkill[] =>
+  techs.map((tecnologia) => ({ usuarioId, tecnologia, tipoAtividade, nivel }));
+
 export function seed(): MockDb {
   return {
     seq: 1000,
     users: [
-      { id: 1, username: "ana.souza", email: "ana@demo.com", roles: ["ADMINISTRADOR", "GERENTE"] },
-      { id: 2, username: "bruno.lima", email: "bruno@demo.com", roles: ["GERENTE"] },
+      { id: 1, username: "ana.souza", email: "ana@demo.com", roles: ["ADMINISTRADOR", "MEMBRO"] },
+      { id: 2, username: "bruno.lima", email: "bruno@demo.com", roles: ["MEMBRO"] },
       { id: 3, username: "carla.dias", email: "carla@demo.com", roles: ["MEMBRO"] },
       { id: 4, username: "diego.alves", email: "diego@demo.com", roles: ["MEMBRO"] },
       { id: 5, username: "elisa.melo", email: "elisa@demo.com", roles: ["MEMBRO"] },
@@ -187,6 +163,7 @@ export function seed(): MockDb {
         descricao: "Catálogo de livros, empréstimos e autenticação de usuários.",
         arquivado: false,
         criadorId: 2,
+        gerenteId: 2,
         equipeIds: [2, 1, 3, 4],
         createdAt: daysAgo(30),
       },
@@ -196,6 +173,7 @@ export function seed(): MockDb {
         descricao: "Aplicativo para agendar atendimentos em clínicas.",
         arquivado: false,
         criadorId: 1,
+        gerenteId: 1,
         equipeIds: [1, 3, 5],
         createdAt: daysAgo(14),
       },
@@ -205,6 +183,7 @@ export function seed(): MockDb {
         descricao: "Projeto encerrado, mantido para consulta.",
         arquivado: true,
         criadorId: 2,
+        gerenteId: 2,
         equipeIds: [2, 4],
         createdAt: daysAgo(200),
       },
@@ -220,45 +199,45 @@ export function seed(): MockDb {
         id: 101, projetoId: 10, titulo: "Autenticação JWT",
         conteudo: "Implementar login, geração e validação de tokens e proteção das rotas da API.",
         requisitos: "- Expiração do token em 1h\n- Senhas com BCrypt\n- Rotas públicas apenas para login e cadastro",
-        tecnologias: ["Spring Security", "JWT", "PostgreSQL"], prioridade: "ALTA", complexidade: "ALTA",
+        tecnologias: ["Spring Security", "JWT", "PostgreSQL"], prioridade: "ALTA", complexidade: 4,
         prazo: dateIn(5),
       }),
       task({
         id: 102, projetoId: 10, titulo: "Tela de cadastro de livros",
         conteudo: "Formulário com validação para cadastrar e editar livros do acervo.",
-        tecnologias: ["React", "TypeScript"], prioridade: "MEDIA", complexidade: "MEDIA",
+        tecnologias: ["React", "TypeScript"], prioridade: "MEDIA", complexidade: 3,
         responsavelId: 3, prazo: dateIn(8),
       }),
       task({
         id: 103, projetoId: 10, titulo: "Modelagem do banco",
         conteudo: "Definir entidades de livros, exemplares, usuários e empréstimos.",
-        tecnologias: ["PostgreSQL"], prioridade: "ALTA", complexidade: "MEDIA",
+        tecnologias: ["PostgreSQL"], prioridade: "ALTA", complexidade: 3,
         status: "EM_ANDAMENTO", responsavelId: 4, prazo: dateIn(-2), updatedAt: daysAgo(9),
       }),
       task({
         id: 104, projetoId: 10, titulo: "Endpoint de empréstimos",
         conteudo: "API REST para registrar empréstimos e devoluções.",
-        tecnologias: ["Java", "Spring Boot"], prioridade: "MEDIA", complexidade: "ALTA",
+        tecnologias: ["Java", "Spring Boot"], prioridade: "MEDIA", complexidade: 4,
         status: "EM_ANDAMENTO", responsavelId: 4, dependenciasIds: [103],
       }),
       task({
         id: 105, projetoId: 10, titulo: "Relatório de empréstimos atrasados",
-        tecnologias: ["Java", "PostgreSQL"], prioridade: "BAIXA", complexidade: "BAIXA",
+        tecnologias: ["Java", "PostgreSQL"], prioridade: "BAIXA", complexidade: 2,
         status: "PENDENTE", responsavelId: 4, dependenciasIds: [104, 103],
       }),
       task({
         id: 106, projetoId: 10, titulo: "Busca de livros por título e autor",
-        tecnologias: ["React", "Spring Boot"], prioridade: "MEDIA", complexidade: "MEDIA",
+        tecnologias: ["React", "Spring Boot"], prioridade: "MEDIA", complexidade: 3,
         status: "EM_REVISAO", responsavelId: 3,
       }),
       task({
         id: 107, projetoId: 10, titulo: "Configurar repositório",
-        tecnologias: ["Git"], prioridade: "BAIXA", complexidade: "BAIXA",
+        tecnologias: ["Git"], prioridade: "BAIXA", complexidade: 1,
         status: "CONCLUIDA", responsavelId: 1, updatedAt: daysAgo(20),
       }),
       task({
         id: 108, projetoId: 10, titulo: "Notificação de devolução por e-mail",
-        tecnologias: ["Spring Boot"], prioridade: "URGENTE", complexidade: "MEDIA",
+        tecnologias: ["Spring Boot"], prioridade: "URGENTE", complexidade: 3,
         status: "PENDENTE", dependenciasIds: [104],
       }),
       task({
@@ -269,39 +248,40 @@ export function seed(): MockDb {
       task({ id: 301, projetoId: 12, titulo: "Migrar conteúdo", status: "CONCLUIDA", responsavelId: 4 }),
     ],
     skills: [
-      { id: 1, usuarioId: 1, tecnologias: ["Spring Security", "JWT", "Java"], tipoAtividade: "BACKEND", nivelExperiencia: "AVANCADO" },
-      { id: 2, usuarioId: 1, tecnologias: ["Git", "Docker"], tipoAtividade: "DEVOPS", nivelExperiencia: "INTERMEDIARIO" },
-      { id: 3, usuarioId: 2, tecnologias: ["Java", "Spring Boot"], tipoAtividade: "BACKEND", nivelExperiencia: "INTERMEDIARIO" },
-      { id: 4, usuarioId: 2, tecnologias: ["Scrum"], tipoAtividade: "GESTAO", nivelExperiencia: "AVANCADO" },
-      { id: 5, usuarioId: 3, tecnologias: ["React", "TypeScript"], tipoAtividade: "FRONTEND", nivelExperiencia: "AVANCADO" },
-      { id: 6, usuarioId: 4, tecnologias: ["PostgreSQL", "Java"], tipoAtividade: "BANCO_DE_DADOS", nivelExperiencia: "INTERMEDIARIO" },
-      { id: 7, usuarioId: 5, tecnologias: ["Figma"], tipoAtividade: "DESIGN", nivelExperiencia: "ESPECIALISTA" },
+      ...skills(1, "BACKEND", 4, ["Spring Security", "JWT", "Java"]),
+      ...skills(1, "DEVOPS", 3, ["Git", "Docker"]),
+      ...skills(2, "BACKEND", 3, ["Java", "Spring Boot"]),
+      ...skills(2, "GESTAO", 4, ["Scrum"]),
+      ...skills(3, "FRONTEND", 4, ["React", "TypeScript"]),
+      ...skills(4, "BANCO_DE_DADOS", 3, ["PostgreSQL", "Java"]),
+      ...skills(5, "DESIGN", 5, ["Figma"]),
     ],
     comments: [
-      { id: 1, tarefaId: 103, conteudo: "Falta decidir se exemplar vira tabela própria.", autorId: 4, createdAt: daysAgo(9) },
-      { id: 2, tarefaId: 103, conteudo: "Sim, separa exemplar de livro.", autorId: 2, createdAt: daysAgo(8) },
+      { id: 1, tarefaId: 103, texto: "Falta decidir se exemplar vira tabela própria.", autorId: 4, criadoEm: daysAgo(9) },
+      { id: 2, tarefaId: 103, texto: "Sim, separa exemplar de livro.", autorId: 2, criadoEm: daysAgo(8) },
     ],
     attachments: [
-      { id: 1, tarefaId: 103, nomeArquivo: "diagrama-er.pdf", tipoConteudo: "application/pdf", tamanho: 184_320, autorId: 4, createdAt: daysAgo(9) },
+      { id: 1, tarefaId: 103, nome: "diagrama-er.pdf", tamanho: 184_320, autorId: 4, criadoEm: daysAgo(9) },
     ],
     history: [
-      { id: 1, tarefaId: 103, campo: null, valorAnterior: null, valorNovo: null, descricao: "criou a tarefa", autorId: 2, createdAt: daysAgo(12) },
-      { id: 2, tarefaId: 103, campo: "status", valorAnterior: "A fazer", valorNovo: "Em andamento", descricao: null, autorId: 4, createdAt: daysAgo(9) },
+      { id: 1, tarefaId: 103, acao: "CRIACAO", atorId: 2, responsavelId: null, status: "PENDENTE", criadoEm: daysAgo(12) },
+      { id: 2, tarefaId: 103, acao: "ATRIBUICAO", atorId: 2, responsavelId: 4, status: "PENDENTE", criadoEm: daysAgo(11) },
+      { id: 3, tarefaId: 103, acao: "STATUS", atorId: 4, responsavelId: 4, status: "EM_ANDAMENTO", criadoEm: daysAgo(9) },
     ],
     documents: [
-      { id: 1, nomeArquivo: "Guia de API.pdf", tipoConteudo: "application/pdf", tamanho: 512_000, projetoId: 10, enviadoEm: Date.now() - 86_400_000, falha: false, createdAt: daysAgo(1) },
-      { id: 2, nomeArquivo: "politica-de-emprestimos.md", tipoConteudo: "text/markdown", tamanho: 8_200, projetoId: null, enviadoEm: Date.now() - 86_400_000, falha: false, createdAt: daysAgo(1) },
+      {
+        id: 1, projetoId: 10, nome: "Guia de API.pdf", tipo: "PDF", criadoEm: daysAgo(1),
+        trechos: [
+          "Todas as rotas exigem autenticação JWT, exceto login e cadastro.",
+          "O prazo padrão de empréstimo é de 14 dias, renovável uma vez.",
+        ],
+      },
     ],
-    rules: [
-      { id: 1, regra: "Tarefas de segurança só devem ser recomendadas a integrantes de nível avançado.", ativa: true, createdAt: daysAgo(5) },
-      { id: 2, regra: "Evite recomendar integrantes com mais de 3 tarefas em andamento.", ativa: true, createdAt: daysAgo(5) },
-    ],
-    terms: [
-      { id: 1, termo: "Exemplar", definicao: "Cópia física de um livro do acervo.", sinonimos: ["cópia", "unidade"] },
-      { id: 2, termo: "Sprint", definicao: "Ciclo de duas semanas de desenvolvimento.", sinonimos: ["iteração"] },
-    ],
-    conversations: [],
-    decisions: [],
+    domain: {
+      regras: "Tarefas de segurança só devem ser recomendadas a integrantes de nível 4 ou 5.\nEvite recomendar integrantes com mais de 3 tarefas em andamento.",
+      vocabulario: "Exemplar: cópia física de um livro do acervo.\nSprint: ciclo de duas semanas de desenvolvimento.",
+    },
+    recommendations: [],
   };
 }
 

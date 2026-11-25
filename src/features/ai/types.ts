@@ -1,142 +1,119 @@
-export type SourceType = "TASK" | "DOCUMENT" | "PROJECT" | "OTHER";
+/** Tipos de fonte citados pelo backend (`Fonte.tipo`). */
+export type SourceType = "TASK" | "DOCUMENT" | "PROJECT" | "INDICATORS" | "OTHER";
 
-/** Fonte citada pela IA. */
+/** Fonte citada pela IA. `ref` é o identificador citado no texto (ex.: "T12", "D3"). */
 export interface AiSource {
+  ref: string;
   type: SourceType;
+  /** Id do recurso original (tarefa, documento ou projeto). */
   id: number | null;
   title: string;
   excerpt: string | null;
+  page: number | null;
 }
 
-export type BottleneckKind = "STALLED_TASK" | "OVERLOADED_MEMBER" | "BLOCKING_DEPENDENCY" | "OTHER";
-export type Severity = "LOW" | "MEDIUM" | "HIGH";
-
-export interface Bottleneck {
-  kind: BottleneckKind;
-  severity: Severity;
-  description: string;
-  tasks: { id: number; title: string }[];
-  members: { id: number; username: string }[];
+/**
+ * Resposta da IA (`Resposta` do backend). `fallback` indica resposta
+ * alternativa, em geral extrativa, quando a síntese do modelo não está
+ * disponível; `notice` traz o aviso do servidor nesses casos.
+ */
+export interface AiAnswer {
+  text: string;
+  sources: AiSource[];
+  fallback: boolean;
+  notice: string | null;
 }
 
 export interface Recommendation {
   userId: number;
-  username: string;
-  /** Percentual de adequação, de 0 a 100. */
+  /** Preenchido pela tela a partir da equipe (o backend envia só o id). */
+  username: string | null;
+  /** Pontuação de 0 a 100. */
   score: number;
   justification: string;
-  skills: string[];
-  currentLoad: number | null;
   sources: AiSource[];
 }
 
 export interface RecommendationResult {
-  recommendationId: number | null;
-  /** Verdadeiro quando o backend usou a alocação alternativa por pontuação simples (sem LLM). */
+  recommendationId: number;
+  /** Verdadeiro quando o contexto veio sem síntese do modelo (pontuação calculada no servidor). */
   fallback: boolean;
+  notice: string | null;
   items: Recommendation[];
+  /** Decisão já registrada, se houver. */
+  decision: RecommendationDecision | null;
+  chosenUserId: number | null;
 }
 
 export type RecommendationDecision = "ACCEPTED" | "ADJUSTED" | "REJECTED";
 
 export interface DecisionInput {
   taskId: number;
-  recommendationId: number | null;
+  recommendationId: number;
   decision: RecommendationDecision;
-  recommendedUserId: number | null;
-  chosenUserId: number | null;
-  reason?: string;
+  /** Obrigatório em ADJUSTED. */
+  chosenUserId?: number | null;
+  note?: string;
 }
 
-export interface AssistantAnswer {
+export interface AssistantAnswer extends AiAnswer {
   id: string;
   question: string;
-  answer: string;
-  sources: AiSource[];
-  bottlenecks: Bottleneck[];
   createdAt?: string;
 }
 
-export interface ProjectSummary {
-  summary: string;
-  generatedAt?: string;
-  sources: AiSource[];
+/** Filtro opcional do resumo pelo prazo das tarefas (datas AAAA-MM-DD). */
+export interface SummaryPeriod {
+  start?: string;
+  end?: string;
 }
 
-export type SummaryScope = "PROJECT" | "SPRINT";
-
-export interface DescriptionSuggestion {
-  description: string;
-  justification: string | null;
-  sources: AiSource[];
-}
-
+/** Tarefa citada pela IA ao sugerir dependências, para revisão antes de registrar. */
 export interface DependencySuggestion {
   taskId: number;
-  title: string | null;
+  title: string;
   justification: string;
+  /** Similaridade da fonte, de 0 a 100. */
   confidence: number | null;
 }
 
-// ---- Contrato do backend ----
-
-export interface SourceDto {
-  tipo?: string | null;
-  id?: number | null;
-  titulo?: string | null;
-  nome?: string | null;
-  trecho?: string | null;
+export interface DependencySuggestionResult {
+  answer: AiAnswer;
+  suggestions: DependencySuggestion[];
 }
 
-export interface BottleneckDto {
+// ---- Contrato do backend (RagDtos) ----
+
+export interface SourceDto {
+  id: string;
   tipo?: string | null;
-  severidade?: string | null;
-  descricao: string;
-  tarefas?: { id: number; titulo: string }[] | null;
-  usuarios?: { id: number; username: string }[] | null;
+  recursoId?: number | null;
+  titulo?: string | null;
+  pagina?: number | null;
+  trecho?: string | null;
+  similaridade?: number | null;
+}
+
+export interface AnswerDto {
+  resposta: string;
+  fontes?: SourceDto[] | null;
+  alternativa?: boolean | null;
+  aviso?: string | null;
+}
+
+export interface CandidateDto {
+  usuarioId: number;
+  pontuacao: number;
+  justificativa?: string | null;
+  /** Identificadores das fontes citadas (ex.: "T1"), detalhadas em `contexto.fontes`. */
+  fontes?: string[] | null;
 }
 
 export interface RecommendationDto {
-  usuarioId: number;
-  username?: string | null;
-  nome?: string | null;
-  adequacao: number;
-  justificativa?: string | null;
-  competencias?: string[] | null;
-  cargaAtual?: number | null;
-  fontes?: SourceDto[] | null;
-}
-
-export interface RecommendationResponseDto {
-  recomendacaoId?: number | null;
-  modo?: string | null;
-  recomendacoes?: RecommendationDto[] | null;
-}
-
-export interface QueryResponseDto {
-  resposta: string;
-  fontes?: SourceDto[] | null;
-  gargalos?: BottleneckDto[] | null;
-  id?: number | string | null;
-  pergunta?: string | null;
-  createdAt?: string;
-}
-
-export interface SummaryResponseDto {
-  resumo: string;
-  geradoEm?: string | null;
-  fontes?: SourceDto[] | null;
-}
-
-export interface DescriptionResponseDto {
-  descricao: string;
-  justificativa?: string | null;
-  fontes?: SourceDto[] | null;
-}
-
-export interface DependencySuggestionDto {
+  id: number;
   tarefaId: number;
-  titulo?: string | null;
-  justificativa?: string | null;
-  confianca?: number | null;
+  ranking?: CandidateDto[] | null;
+  contexto?: AnswerDto | null;
+  decisao?: string | null;
+  escolhidoId?: number | null;
 }

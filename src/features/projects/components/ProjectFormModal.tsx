@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, Search } from "lucide-react";
 import { Modal } from "@/components/Modal";
-import { getErrorMessage, getFieldErrors } from "@/lib/apiError";
+import { getErrorMessage, getFieldErrors, isForbidden } from "@/lib/apiError";
 import util from "@/lib/util.json";
 import {
   listUsers,
@@ -36,10 +36,18 @@ export function ProjectFormModal({
   onSaved: (project: Project, mode: "created" | "updated") => void;
 }) {
   const isEdit = Boolean(project);
-  const lockedId = project ? (project.creatorId ?? undefined) : currentUserId;
+  // Criador e gerente atual sempre ficam na equipe (regra do backend).
+  const lockedIds = new Set(
+    (project ? [project.creatorId, project.managerId] : [currentUserId]).filter(
+      (id): id is number => id != null,
+    ),
+  );
 
   const [users, setUsers] = useState<UserSummary[] | null>(null);
   const [usersError, setUsersError] = useState(false);
+  /** O diretório de usuários é liberado só a gerentes de projeto e administradores. */
+  const [usersForbidden, setUsersForbidden] = useState(false);
+  const [managerId, setManagerId] = useState<number | null>(project?.managerId ?? null);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(
     () =>
@@ -65,9 +73,10 @@ export function ProjectFormModal({
   const loadUsers = () => {
     setUsersError(false);
     setUsers(null);
+    setUsersForbidden(false);
     listUsers()
       .then(setUsers)
-      .catch(() => setUsersError(true));
+      .catch((error) => (isForbidden(error) ? setUsersForbidden(true) : setUsersError(true)));
   };
   useEffect(loadUsers, []);
 
@@ -85,7 +94,7 @@ export function ProjectFormModal({
   }, [users, search]);
 
   const toggleMember = (id: number) => {
-    if (id === lockedId) return;
+    if (lockedIds.has(id)) return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -100,6 +109,7 @@ export function ProjectFormModal({
       name: data.name,
       description: data.description || undefined,
       teamIds: users ? [...selectedIds] : isEdit ? undefined : [],
+      managerId: project && managerId != null && managerId !== project.managerId ? managerId : undefined,
     };
     try {
       const saved = project
@@ -183,7 +193,11 @@ export function ProjectFormModal({
           </div>
 
           <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200">
-            {usersError ? (
+            {usersForbidden ? (
+              <p role="status" className="p-4 text-sm leading-6 text-slate-600">
+                {isEdit ? t.teamForbiddenEdit : t.teamForbidden}
+              </p>
+            ) : usersError ? (
               <p role="alert" className="p-4 text-sm text-red-700">
                 {t.teamError}{" "}
                 <button
@@ -203,7 +217,7 @@ export function ProjectFormModal({
             ) : (
               <ul className="divide-y divide-slate-100">
                 {filteredUsers.map((user) => {
-                  const locked = user.id === lockedId;
+                  const locked = lockedIds.has(user.id);
                   return (
                     <li key={user.id}>
                       <label
@@ -233,7 +247,7 @@ export function ProjectFormModal({
                             {locked && (
                               <span className="font-normal text-slate-500">
                                 {" "}
-                                · {t.creator}
+                                · {user.id === project?.managerId ? t.manager : t.creator}
                               </span>
                             )}
                           </span>
@@ -249,6 +263,26 @@ export function ProjectFormModal({
             )}
           </div>
         </fieldset>
+
+        {project && (
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+            {t.managerLabel}
+            <select
+              value={managerId ?? ""}
+              onChange={(event) => setManagerId(Number(event.target.value))}
+              className={`${inputClass} h-11`}
+            >
+              {(users ? users.filter((user) => selectedIds.has(user.id) || lockedIds.has(user.id)) : project.team).map(
+                (member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.username}
+                  </option>
+                ),
+              )}
+            </select>
+            <span className="text-xs font-normal text-slate-500">{t.managerHint}</span>
+          </label>
+        )}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button

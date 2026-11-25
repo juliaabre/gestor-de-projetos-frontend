@@ -24,7 +24,7 @@ Testes: `pnpm test` (detalhes em [Testes](#testes)) · Build: `pnpm build` · Pr
 pnpm dev:mock
 ```
 
-Sobe o frontend com um backend falso em memória (`src/mocks`) que implementa todas as rotas descritas abaixo, inclusive IA e administração, com dados de exemplo. Um botão **Simulação** no canto da tela permite entrar como qualquer usuário de demonstração (senha `123456`: `ana@demo.com` é administradora e gerente, `bruno@demo.com` gerente, `carla`, `diego` e `elisa@demo.com` membros), alternar o estado da IA (funcionando, só alocação simples ou fora do ar) e restaurar os dados. As alterações ficam salvas na aba do navegador (sessionStorage). O código da simulação só é carregado nesse modo e não entra no build de produção.
+Sobe o frontend com um backend falso em memória (`src/mocks`) que segue o mesmo contrato do backend real (e a proposta de colunas personalizadas), inclusive IA e administração, com dados de exemplo. Um botão **Simulação** no canto da tela permite entrar como qualquer usuário de demonstração (senha `123456`: `ana@demo.com` é administradora e gerente do App de agendamentos, `bruno@demo.com` gerente do Sistema de biblioteca, `carla`, `diego` e `elisa@demo.com` membros), alternar o estado da IA (funcionando, sem síntese como o backend sem Gemini, ou fora do ar) e restaurar os dados. As alterações ficam salvas na aba do navegador (sessionStorage). O código da simulação só é carregado nesse modo e não entra no build de produção.
 
 ## Testes
 
@@ -80,67 +80,67 @@ Em desenvolvimento, deixe `VITE_API_BASE_URL` vazio: o Vite encaminha `/api` par
 
 ## Integração com o backend
 
-Contrato alinhado com `gestor-de-projetos-com-retrieval-augmented-generation`. Todas as rotas ficam em `src/lib/endpoints.ts`:
+Contrato alinhado com a branch `feat/gerencia-por-projeto` de `gestor-de-projetos-com-retrieval-augmented-generation` (referência completa em `src/docs/MANUAL_API.md` daquele repositório). Todas as rotas ficam em `src/lib/endpoints.ts`, e `src/test/backendSamples.ts` guarda respostas reais do backend usadas como teste de contrato.
 
-| Recurso      | Rotas                                                                                                          |
-| ------------ | -------------------------------------------------------------------------------------------------------------- |
-| Autenticação | `POST /api/v1/auth/login` `{ email, password }` · `POST /api/v1/auth/register` `{ username, email, password }` |
-| Usuários     | `/api/usuarios`                                                                                                |
-| Projetos     | `/api/projetos`, `PATCH /api/projetos/{id}/arquivar` e `/desarquivar`                                          |
-| Tarefas      | `/api/tarefas`, `/api/tarefas/projeto/{projetoId}`                                                             |
-| Colunas      | `/api/projetos/{id}/colunas`, `PUT /api/projetos/{id}/colunas/{colunaId}`                                      |
-| Competências | `/api/usuarios/{id}/competencias`, `PUT`/`DELETE /api/usuarios/{id}/competencias/{competenciaId}`              |
-| Comentários  | `GET`/`POST /api/tarefas/{id}/comentarios`                                                                     |
-| Anexos       | `GET`/`POST` (multipart, campo `arquivo`) `/api/tarefas/{id}/anexos`, `GET .../anexos/{anexoId}/download`      |
-| Histórico    | `GET /api/tarefas/{id}/historico`                                                                              |
-| IA           | `/api/ia/recomendar-responsaveis` (+ `/decisao`), `/api/ia/consultar`, `/historico`, `/resumo`, `/gargalos`, `/gerar-descricao`, `/sugerir-dependencias` |
-| Admin        | `/api/admin/documentos`, `/api/admin/regras-dominio`, `/api/admin/vocabulario` (somente Administrador)         |
+| Recurso | Rotas |
+| --- | --- |
+| Autenticação | `POST /api/v1/auth/login` · `POST /api/v1/auth/register` (JWT em texto puro, papéis no claim `roles`) |
+| Usuários | `GET /api/usuarios` (só gerentes de projeto e administradores) |
+| Projetos | `/api/projetos`, `PATCH .../arquivar` e `/desarquivar`; `gerenteId` no `PUT` transfere a gerência |
+| Tarefas | `/api/tarefas`, `/api/tarefas/projeto/{projetoId}`, `PATCH /api/tarefas/{id}/status?novoStatus=` |
+| Dependências | `GET /api/tarefas/{id}/dependencias`, `PUT`/`DELETE .../dependencias/{prerequisitoId}` |
+| Comentários | `GET`/`POST /api/tarefas/{id}/comentarios` `{ texto }` |
+| Anexos | `GET`/`POST` (multipart `arquivo`, até 5 MB) `/api/tarefas/{id}/anexos`, `GET`/`DELETE .../anexos/{anexoId}` |
+| Histórico | `GET /api/tarefas/{id}/historico` → `{ acao, atorId, responsavelId, status, criadoEm }` |
+| Competências | `GET`/`PUT /api/usuarios/{id}/competencias` (lista completa de `{ tecnologia, tipoAtividade, nivel 1–5 }`; só o titular ou administrador) |
+| IA | `POST /api/ia/consultar?projetoId=` `{ pergunta }` · `GET /api/ia/projetos/{id}/resumo?inicio=&fim=` · `GET .../gargalos` · `POST /api/ia/tarefas/{id}/descricao` · `GET .../dependencias` · `POST`/`GET .../recomendacoes` · `POST .../recomendacoes/{id}/feedback` |
+| Documentos | `GET /api/projetos/{id}/documentos` (e `/{docId}/trechos`) · `POST`/`DELETE /api/admin/projetos/{id}/documentos` |
+| Domínio | `GET`/`POST /api/admin/regras-dominio` `{ regras, vocabulario }` |
+
+### Perfis e permissões
+
+Os papéis globais são **Membro** e **Administrador**; o **gerente** é definido por projeto (o criador, ou quem recebeu a gerência). O frontend só usa as permissões para mostrar ou esconder ações; quem decide é o backend (`podeGerenciar`).
+
+| Ação | Quem |
+| --- | --- |
+| Ver o projeto, mover tarefas (status), comentar, anexar, usar o assistente | Integrante da equipe |
+| Criar, editar e excluir tarefas, dependências, anexos; equipe e gerência; recomendação, resumo, gargalos, descrição e dependências com IA | Gerente do projeto |
+| Competências de qualquer usuário, base de conhecimento e regras de domínio | Administrador (documentos exigem integrar a equipe de um projeto ativo) |
 
 ### Fluxo de autenticação
 
-1. Login/cadastro devolvem o JWT (texto puro; `{ token }` também é aceito), com os papéis no claim `roles`.
-2. O e-mail é lido do `sub` do JWT e o perfil (`id`, `username`) é buscado em `GET /api/usuarios`, já que não existe endpoint `/me`.
-3. O token fica em `sessionStorage` e é enviado em `Authorization: Bearer` pelo interceptor do Axios. Na carga da página a sessão é restaurada se o token não tiver expirado; uma resposta 401 encerra a sessão.
+1. Login/cadastro devolvem o JWT. O e-mail vem do `sub` e os papéis do claim `roles`.
+2. Como não existe `/me` e o diretório de usuários é restrito, o `id` do usuário é obtido na equipe dos projetos dele (`GET /api/projetos`) e, se preciso, em `GET /api/usuarios`.
+3. O token fica em `sessionStorage` e vai em `Authorization: Bearer`. Uma resposta 401 encerra a sessão.
 
-Erros da API seguem o formato `{ status, erro, mensagem, erros? }`; `src/lib/apiError.ts` os converte em mensagens para a interface. Permissões no frontend são apenas controle visual; a autorização real é do backend.
+Erros seguem `{ status, erro, mensagem, erros? }`; `src/lib/apiError.ts` os converte em mensagens.
 
-### Projetos (`/projects`)
+### Quadro, tarefas e equipe
 
-- Lista os projetos que a API devolve para o usuário, em abas **Ativos** e **Arquivados**, com nome, descrição, equipe e papel do usuário no projeto. Há estados de carregamento, lista vazia e erro.
-- Qualquer usuário autenticado cria projetos e se torna o gerente deles. Editar, definir a equipe e arquivar só aparecem quando o projeto tem `canManage: true`, calculado pelo backend (criador, gerente membro da equipe ou administrador).
-- Arquivar pede confirmação e a interface aplica o projeto devolvido pelo backend. Projetos arquivados não podem ser editados até serem desarquivados.
+- Colunas padrão por status (A fazer, Em andamento, Concluído, Cancelado). Mover usa `PATCH /status`, com atualização otimista e retorno à coluna original se falhar.
+- Complexidade de 1 a 5. Dependências são lidas por tarefa e gravadas pela diferença (`PUT`/`DELETE`) depois de salvar a tarefa.
+- Se o servidor não devolver algum campo enviado, a tela avisa quais não foram gravados.
+- Comentários, anexos e histórico mostram o nome do autor a partir da equipe (o backend envia só o id).
+- Na aba **Equipe**, cada integrante vê as próprias competências (o administrador vê todas); as dos demais aparecem como privadas, como o backend exige.
 
-### Quadro do projeto (`/projects/:id`)
+**Colunas personalizadas** estão prontas no frontend (criar, renomear, reordenar e excluir movendo as tarefas), mas dependem de o backend ligar coluna e tarefa: hoje os quadros (`/quadros`) guardam só nomes e a tarefa tem status fixo. Por isso ficam desligadas por padrão (o botão **Nova coluna** explica o motivo) e ligadas na simulação e nos testes; defina `VITE_CUSTOM_COLUMNS=true` quando o backend oferecer as rotas propostas em `endpoints.projects.columns`.
 
-- Aba **Quadro**: colunas Kanban com cartões (título, prioridade, complexidade, tecnologias, responsável, prazo e dependências pendentes). As tarefas são movidas arrastando o cartão ou, de forma acessível e em telas pequenas, pelo seletor **Mover para** de cada cartão. A mudança é aplicada na hora e enviada à API (`PUT /api/tarefas/{id}` com a tarefa completa); se a API recusar, a tarefa volta para a coluna original e o erro é exibido.
-- Criação, edição e exclusão (com confirmação) de tarefas atualizam o quadro sem recarregar a página. Em caso de erro, o formulário continua aberto com os dados preenchidos.
-- Detalhes da tarefa: descrição, requisitos, tecnologias, dependências (de quem depende e quem bloqueia), comentários, anexos (até 10 MB, extensões permitidas validadas no cliente) e histórico.
-- Aba **Equipe** (`?aba=equipe`): integrantes e competências (tecnologias, tipo de atividade e nível). Cada usuário mantém as próprias competências; administradores podem manter as de qualquer integrante.
-- Permissões visuais: integrantes da equipe criam, editam e movem tarefas; excluir tarefas e gerenciar colunas exige `canManage`. Projetos arquivados ficam somente leitura.
+### IA (aba **Assistente IA** e quadro)
 
-Campos de tarefa além dos existentes no backend atual — `requisitos`, `tecnologias` (lista), `complexidade` (`BAIXA`/`MEDIA`/`ALTA`), `prazo` (`YYYY-MM-DD`), `responsavelId` e `dependenciasIds` — são enviados no mesmo `TarefaRequestDTO` e lidos do `TarefaResponseDTO` quando presentes. Competências usam `{ tecnologias: string[], tipoAtividade, nivelExperiencia }`; colunas, `{ id, nome, status, ordem }`, em que `status` é o valor do enum para colunas padrão ou uma chave própria (ex.: `EM_REVISAO`) para colunas personalizadas. Comentários: `{ id, conteudo, autor: { id, username }, createdAt }`; anexos: `{ id, nomeArquivo, tipoConteudo, tamanho, autor, createdAt }`; histórico: `{ id, campo, valorAnterior, valorNovo, descricao, autor, createdAt }`.
+Toda saída da IA é sugestão: nada é aplicado sem ação explícita, e nenhuma resposta é inventada localmente se a API falhar.
 
-Enquanto o backend não oferecer colunas, competências, comentários, anexos ou histórico, respostas 404/405/501 dessas rotas são tratadas como recurso indisponível: o quadro usa as colunas padrão e cada seção exibe um aviso em vez de erro.
-
-### Funcionalidades de IA (aba **Assistente IA** e quadro)
-
-Toda saída da IA é tratada como sugestão: nada é aplicado sem uma ação explícita do usuário, e se a API falhar nenhuma resposta é gerada localmente.
-
-- **Recomendação de responsáveis** — tarefas sem responsável exibem **Sugerir** para quem gerencia o projeto. O ranking mostra percentual de adequação, justificativa, competências, carga atual e fontes. O gerente aceita (atribui o primeiro), ajusta (escolhe outro) ou recusa (com motivo opcional); a atribuição usa `PUT /api/tarefas/{id}` e a decisão é registrada em `POST /api/ia/recomendar-responsaveis/decisao` `{ tarefaId, recomendacaoId, decisao: ACEITA|AJUSTADA|RECUSADA, usuarioRecomendadoId, usuarioEscolhidoId, motivo }`.
-  - `GET /api/ia/recomendar-responsaveis?tarefaId=` → `{ recomendacaoId, modo, recomendacoes: [{ usuarioId, username, adequacao (0–1 ou 0–100), justificativa, competencias, cargaAtual, fontes }] }` (um array simples também é aceito). `modo: "PONTUACAO_SIMPLES"` indica a alocação alternativa sem LLM (RNF05), sinalizada na tela.
-- **Assistente** — `GET /api/ia/consultar?query=&projetoId=` → `{ resposta, fontes: [{ tipo: TAREFA|DOCUMENTO|PROJETO, id, titulo, trecho }], gargalos }`. O envio é travado enquanto houver requisição em andamento. O histórico vem de `GET /api/ia/historico?projetoId=` quando existir; caso contrário a conversa vale só para a sessão.
-- **Resumo e gargalos** — `GET /api/ia/resumo?projetoId=&escopo=PROJETO|SPRINT[&atualizar=true]` → `{ resumo, geradoEm, fontes }` e `GET /api/ia/gargalos?projetoId=` → `[{ tipo: TAREFA_PARADA|MEMBRO_SOBRECARREGADO|DEPENDENCIA_BLOQUEANTE, severidade, descricao, tarefas: [{id, titulo}], usuarios: [{id, username}] }]`. Lista vazia mostra "nenhum gargalo"; falha mostra erro — os dois casos são distintos.
-- **Descrições** — no formulário de tarefa, `POST /api/ia/gerar-descricao` `{ projetoId, tarefaId, titulo, descricaoAtual, instrucao }` → `{ descricao, justificativa, fontes }`. A sugestão aparece numa área de revisão (aceitar, editar ou descartar) e só vai ao campo ao aceitar; nada é salvo até salvar a tarefa.
-- **Dependências** — nos detalhes da tarefa, `GET /api/ia/sugerir-dependencias?tarefaId=` → `[{ tarefaId, titulo, justificativa, confianca }]`. As sugestões ficam separadas (borda tracejada) das confirmadas; sugestões que criariam ciclo ou já existem são descartadas, e só as selecionadas são registradas.
-- **Indisponibilidade** — respostas 404/405/501/502/503/504 e tempo esgotado (60 s) são exibidos como "IA indisponível" apenas na seção afetada; quadro, formulários e atribuição manual continuam funcionando.
+- As respostas seguem `{ resposta, fontes, alternativa, aviso }`. Sem o provedor (Gemini) configurado, o backend devolve uma resposta **alternativa** extrativa; a tela mostra o aviso do servidor e as fontes citadas.
+- **Recomendação** — o gerente aceita (o backend atribui o primeiro do ranking), ajusta (atribui o escolhido) ou recusa (com observação). Sem IA, a atribuição manual edita a tarefa.
+- **Assistente** — disponível a todos os integrantes; a conversa fica salva só na aba do navegador, pois o backend não guarda histórico.
+- **Resumo e gargalos** — só para o gerente; o resumo aceita período (as duas datas juntas).
+- **Descrição** — gerada para tarefas já salvas, com revisão (aceitar, editar ou descartar).
+- **Dependências** — as tarefas citadas pela IA aparecem para seleção antes de registrar.
+- 404/405/501/502/503/504 e tempo esgotado (60 s) aparecem como "IA indisponível" só na seção afetada.
 
 ### Base de conhecimento (`/admin/conhecimento`, somente Administrador)
 
-A rota é protegida por `AdminRoute` (usuários sem o papel `ADMINISTRADOR` vão para `/unauthorized`) e o link só aparece no menu para administradores.
-
-- **Documentos** — upload multipart (`arquivo`, `projetoId` opcional para restringir o acesso) de PDF, Markdown ou texto até 20 MB. `GET /api/admin/documentos` → `[{ id, nomeArquivo, tamanho, status: PENDENTE|PROCESSANDO|PROCESSADO|ERRO, mensagemErro, quantidadeTrechos, projetoId, createdAt }]`; o status é consultado a cada 4 s enquanto houver documento em processamento.
-- **Regras de domínio** — `{ id, regra, ativa }`, com criação, edição, ativação/desativação e exclusão.
-- **Vocabulário** — `{ id, termo, definicao, sinonimos: string[] }`, com busca, criação, edição e exclusão.
+- **Documentos** — por projeto ativo do qual o administrador participa; PDF com texto, Markdown ou texto até 5 MB. A indexação ocorre na própria requisição e a lista mostra os trechos indexados. Erros do servidor (413, 415, 422, 503 com o provedor desligado) aparecem com a mensagem dele.
+- **Regras e vocabulário** — dois textos de até 4000 caracteres (as regras são obrigatórias).
 
 ## Estrutura
 

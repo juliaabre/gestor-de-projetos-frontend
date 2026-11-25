@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, LoaderCircle, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/States";
-import { smallButtonClass } from "@/components/ui";
-import { fillTemplate, formatDateTime } from "@/lib/format";
+import { inputClass, smallButtonClass } from "@/components/ui";
 import util from "@/lib/util.json";
 import { getBottlenecks, getSummary } from "../services/aiService";
 import { aiFailure, type AiState } from "../state";
-import type { Bottleneck, ProjectSummary, SummaryScope } from "../types";
-import { AiBadge, AiUnavailable, BottleneckAlert, SourceChips } from "./AiShared";
+import type { AiAnswer, SummaryPeriod } from "../types";
+import { AiBadge, AiNotice, AiText, AiUnavailable, SourceChips } from "./AiShared";
 
 const t = util.ai.summary;
 
+/**
+ * Resumo do andamento e gargalos (funções de gestão: só o gerente do
+ * projeto). O resumo pode ser filtrado pelo prazo das tarefas.
+ */
 export function SummaryPanel({
   projectId,
   onOpenTask,
@@ -18,29 +21,43 @@ export function SummaryPanel({
   projectId: number;
   onOpenTask: (taskId: number) => void;
 }) {
-  const [scope, setScope] = useState<SummaryScope>("PROJECT");
-  const [summary, setSummary] = useState<AiState<ProjectSummary>>({ status: "loading" });
-  const [bottlenecks, setBottlenecks] = useState<AiState<Bottleneck[]>>({ status: "loading" });
+  const [period, setPeriod] = useState<SummaryPeriod>({});
+  const [draft, setDraft] = useState<SummaryPeriod>({});
+  const [periodError, setPeriodError] = useState("");
+  const [summary, setSummary] = useState<AiState<AiAnswer>>({ status: "loading" });
+  const [bottlenecks, setBottlenecks] = useState<AiState<AiAnswer>>({ status: "loading" });
 
-  const load = useCallback(
-    (refresh: boolean) => {
-      let active = true;
-      setSummary({ status: "loading" });
-      setBottlenecks({ status: "loading" });
-      getSummary(projectId, scope, refresh)
-        .then((data) => active && setSummary({ status: "success", data }))
-        .catch((error) => active && setSummary(aiFailure(error, t.error)));
-      getBottlenecks(projectId)
-        .then((data) => active && setBottlenecks({ status: "success", data }))
-        .catch((error) => active && setBottlenecks(aiFailure(error, t.bottlenecksError)));
-      return () => {
-        active = false;
-      };
-    },
-    [projectId, scope],
-  );
+  const load = useCallback(() => {
+    let active = true;
+    setSummary({ status: "loading" });
+    setBottlenecks({ status: "loading" });
+    getSummary(projectId, period)
+      .then((data) => active && setSummary({ status: "success", data }))
+      .catch((error) => active && setSummary(aiFailure(error, t.error)));
+    getBottlenecks(projectId)
+      .then((data) => active && setBottlenecks({ status: "success", data }))
+      .catch((error) => active && setBottlenecks(aiFailure(error, t.bottlenecksError)));
+    return () => {
+      active = false;
+    };
+  }, [projectId, period]);
 
-  useEffect(() => load(false), [load]);
+  useEffect(load, [load]);
+
+  const applyPeriod = (event: FormEvent) => {
+    event.preventDefault();
+    // O backend exige as duas datas juntas (ou nenhuma).
+    if (Boolean(draft.start) !== Boolean(draft.end)) {
+      setPeriodError(t.periodBoth);
+      return;
+    }
+    if (draft.start && draft.end && draft.start > draft.end) {
+      setPeriodError(t.periodInvalid);
+      return;
+    }
+    setPeriodError("");
+    setPeriod({ ...draft });
+  };
 
   const loading = summary.status === "loading" || bottlenecks.status === "loading";
 
@@ -51,38 +68,50 @@ export function SummaryPanel({
           <h2 id="summary-title" className="flex items-center gap-2 font-semibold text-slate-900">
             {t.title} <AiBadge />
           </h2>
-          <div className="flex items-center gap-2">
-            <select
-              value={scope}
-              onChange={(e) => setScope(e.target.value as SummaryScope)}
-              aria-label={t.scope}
-              className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700"
-            >
-              <option value="PROJECT">{t.scopeProject}</option>
-              <option value="SPRINT">{t.scopeSprint}</option>
-            </select>
-            <button type="button" onClick={() => load(true)} disabled={loading} className={smallButtonClass}>
-              {loading ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-              {t.refresh}
-            </button>
-          </div>
+          <button type="button" onClick={load} disabled={loading} className={smallButtonClass}>
+            {loading ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            {t.refresh}
+          </button>
         </header>
+
+        <form onSubmit={applyPeriod} noValidate className="mt-4 flex flex-wrap items-end gap-2" aria-label={t.period}>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
+            {t.periodStart}
+            <input
+              type="date"
+              value={draft.start ?? ""}
+              onChange={(e) => setDraft((prev) => ({ ...prev, start: e.target.value || undefined }))}
+              className={`${inputClass} h-9 px-2 text-sm`}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
+            {t.periodEnd}
+            <input
+              type="date"
+              value={draft.end ?? ""}
+              onChange={(e) => setDraft((prev) => ({ ...prev, end: e.target.value || undefined }))}
+              className={`${inputClass} h-9 px-2 text-sm`}
+            />
+          </label>
+          <button type="submit" className={smallButtonClass}>
+            {t.periodApply}
+          </button>
+          <p className={`w-full text-xs ${periodError ? "text-red-600" : "text-slate-500"}`} role={periodError ? "alert" : undefined}>
+            {periodError || t.periodHint}
+          </p>
+        </form>
 
         <div className="mt-4">
           {summary.status === "loading" && <LoadingState label={t.loading} compact />}
           {summary.status === "unavailable" && <AiUnavailable message={t.unavailable} />}
           {summary.status === "error" && (
-            <ErrorState title={t.error} message={summary.message} onRetry={() => load(false)} compact />
+            <ErrorState title={t.error} message={summary.message} onRetry={load} compact />
           )}
           {summary.status === "success" && (
             <div className="flex flex-col gap-3">
-              <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{summary.data.summary}</p>
+              <AiNotice answer={summary.data} />
+              <AiText text={summary.data.text} />
               <SourceChips sources={summary.data.sources} onOpenTask={onOpenTask} />
-              {summary.data.generatedAt && (
-                <p className="text-xs text-slate-500">
-                  {fillTemplate(t.generatedAt, { date: formatDateTime(summary.data.generatedAt) })}
-                </p>
-              )}
             </div>
           )}
         </div>
@@ -96,21 +125,14 @@ export function SummaryPanel({
           {bottlenecks.status === "loading" && <LoadingState label={t.bottlenecksLoading} compact />}
           {bottlenecks.status === "unavailable" && <AiUnavailable message={t.bottlenecksUnavailable} />}
           {bottlenecks.status === "error" && (
-            <ErrorState title={t.bottlenecksError} message={bottlenecks.message} onRetry={() => load(false)} compact />
+            <ErrorState title={t.bottlenecksError} message={bottlenecks.message} onRetry={load} compact />
           )}
-          {bottlenecks.status === "success" && bottlenecks.data.length === 0 && (
-            <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              <CheckCircle2 className="size-4" aria-hidden="true" /> {t.noBottlenecks}
-            </p>
-          )}
-          {bottlenecks.status === "success" && bottlenecks.data.length > 0 && (
-            <ul className="flex flex-col gap-2" aria-label={t.bottlenecksTitle}>
-              {bottlenecks.data.map((bottleneck, index) => (
-                <li key={index}>
-                  <BottleneckAlert bottleneck={bottleneck} onOpenTask={onOpenTask} />
-                </li>
-              ))}
-            </ul>
+          {bottlenecks.status === "success" && (
+            <div className="flex flex-col gap-3">
+              <AiNotice answer={bottlenecks.data} />
+              <AiText text={bottlenecks.data.text} />
+              <SourceChips sources={bottlenecks.data.sources} onOpenTask={onOpenTask} />
+            </div>
           )}
         </div>
       </section>

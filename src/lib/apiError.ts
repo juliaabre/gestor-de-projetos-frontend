@@ -49,6 +49,11 @@ export function getFieldErrors(error: unknown): Record<string, string> {
   return body(error)?.erros ?? {};
 }
 
+/** 403: o recurso existe, mas o perfil atual não tem acesso. */
+export function isForbidden(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 403;
+}
+
 export function isUnavailable(error: unknown): boolean {
   if (!axios.isAxiosError(error) || !error.response) return false;
   return [404, 405, 501].includes(error.response.status);

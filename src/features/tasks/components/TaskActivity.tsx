@@ -1,5 +1,5 @@
 import { useCallback, useId, useRef, useState, type FormEvent } from "react";
-import { Download, FileText, History, LoaderCircle, MessageSquare, Paperclip, Upload } from "lucide-react";
+import { Download, FileText, History, LoaderCircle, MessageSquare, Paperclip, Trash2, Upload } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { FormError } from "@/components/FeedbackBanner";
 import { fieldErrorClass, inputClass, primaryButtonClass, smallButtonClass } from "@/components/ui";
@@ -10,18 +10,23 @@ import { Avatar } from "@/features/projects/components/Avatar";
 import { useRemoteList } from "../hooks/useRemoteList";
 import {
   addComment,
+  deleteAttachment,
   downloadAttachment,
   listAttachments,
   listComments,
   listHistory,
   uploadAttachment,
 } from "../services/taskService";
-import type { TaskAttachment, TaskComment, TaskHistoryEntry } from "../types";
+import { TASK_STATUSES, type TaskAttachment, type TaskComment, type TaskHistoryEntry } from "../types";
+
+/** Resolve o nome de um integrante pelo id (o backend só envia ids de autor). */
+export type NameOf = (userId: number | null | undefined) => string | null;
 
 const t = util.tasks.details;
 
-export const MAX_COMMENT_LENGTH = 2000;
-export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+/** Limites do backend: comentário até 4000 caracteres e anexo até 5 MB. */
+export const MAX_COMMENT_LENGTH = 4000;
+export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   "pdf", "png", "jpg", "jpeg", "gif", "webp", "svg", "txt", "md", "csv", "json",
   "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "zip",
@@ -45,7 +50,15 @@ function Unavailable({ message }: { message: string }) {
   return <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">{message}</p>;
 }
 
-export function CommentsSection({ taskId, canComment }: { taskId: number; canComment: boolean }) {
+export function CommentsSection({
+  taskId,
+  canComment,
+  nameOf,
+}: {
+  taskId: number;
+  canComment: boolean;
+  nameOf: NameOf;
+}) {
   const loader = useCallback(() => listComments(taskId), [taskId]);
   const { state, reload, add } = useRemoteList<TaskComment>(loader, t.comments.loadError);
   const [draft, setDraft] = useState("");
@@ -88,13 +101,15 @@ export function CommentsSection({ taskId, canComment }: { taskId: number; canCom
       )}
       {state.status === "success" && state.items.length > 0 && (
         <ul className="flex flex-col gap-3" aria-label={t.tabs.comments}>
-          {state.items.map((comment) => (
+          {state.items.map((comment) => {
+            const authorName = comment.author?.username ?? nameOf(comment.author?.id);
+            return (
             <li key={comment.id} className="flex gap-3">
-              <Avatar name={comment.author?.username ?? "?"} className="size-7 text-[10px]" />
+              <Avatar name={authorName ?? "?"} className="size-7 text-[10px]" />
               <div className="min-w-0 flex-1 rounded-xl bg-slate-50 px-3 py-2">
                 <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
                   <span className="font-semibold text-slate-800">
-                    {comment.author?.username ?? t.unknownAuthor}
+                    {authorName ?? t.unknownAuthor}
                   </span>
                   {comment.createdAt && (
                     <time className="text-slate-500" dateTime={String(comment.createdAt)}>
@@ -107,7 +122,8 @@ export function CommentsSection({ taskId, canComment }: { taskId: number; canCom
                 </p>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
@@ -147,12 +163,18 @@ export function CommentsSection({ taskId, canComment }: { taskId: number; canCom
 export function AttachmentsSection({
   taskId,
   canUpload,
+  canDelete = false,
+  nameOf,
 }: {
   taskId: number;
   canUpload: boolean;
+  /** Excluir anexos é do gerente do projeto. */
+  canDelete?: boolean;
+  nameOf: NameOf;
 }) {
   const loader = useCallback(() => listAttachments(taskId), [taskId]);
-  const { state, reload, add } = useRemoteList<TaskAttachment>(loader, t.attachments.loadError);
+  const { state, reload, add, update } = useRemoteList<TaskAttachment>(loader, t.attachments.loadError);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [serverError, setServerError] = useState("");
@@ -199,6 +221,20 @@ export function AttachmentsSection({
       setDownloadError(getErrorMessage(error, t.attachments.downloadError));
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const remove = async (attachment: TaskAttachment) => {
+    if (!window.confirm(fillTemplate(t.attachments.confirmDelete, { name: attachment.fileName }))) return;
+    setDeletingId(attachment.id);
+    setDownloadError("");
+    try {
+      await deleteAttachment(taskId, attachment.id);
+      update((items) => items.filter((item) => item.id !== attachment.id));
+    } catch (error) {
+      setDownloadError(getErrorMessage(error, t.attachments.deleteError));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -260,7 +296,7 @@ export function AttachmentsSection({
                 <p className="text-xs text-slate-500">
                   {[
                     attachment.size != null ? formatBytes(attachment.size) : null,
-                    attachment.uploadedBy?.username,
+                    attachment.uploadedBy?.username ?? nameOf(attachment.uploadedBy?.id),
                     attachment.createdAt ? formatDateTime(attachment.createdAt) : null,
                   ]
                     .filter(Boolean)
@@ -280,6 +316,21 @@ export function AttachmentsSection({
                   <Download className="size-4" />
                 )}
               </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => remove(attachment)}
+                  disabled={deletingId === attachment.id}
+                  aria-label={fillTemplate(t.attachments.delete, { name: attachment.fileName })}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-60"
+                >
+                  {deletingId === attachment.id ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -288,17 +339,28 @@ export function AttachmentsSection({
   );
 }
 
-function describe(entry: TaskHistoryEntry): string {
-  if (entry.description) return entry.description;
-  const field = entry.field ?? t.history.someField;
-  if (entry.oldValue != null && entry.newValue != null) {
-    return fillTemplate(t.history.changed, { field, from: entry.oldValue, to: entry.newValue });
+const statusLabel = (status: string | null) =>
+  TASK_STATUSES.find((s) => s.value === status)?.label ?? status ?? "";
+
+function describe(entry: TaskHistoryEntry, nameOf: NameOf): string {
+  const h = t.history;
+  switch (entry.action) {
+    case "CRIACAO":
+      return fillTemplate(h.created, { status: statusLabel(entry.status) });
+    case "STATUS":
+      return fillTemplate(h.status, { status: statusLabel(entry.status) });
+    case "ATRIBUICAO":
+      return entry.assigneeId != null
+        ? fillTemplate(h.assigned, { name: nameOf(entry.assigneeId) ?? `#${entry.assigneeId}` })
+        : h.unassigned;
+    case "ATUALIZACAO":
+      return h.updated;
+    default:
+      return fillTemplate(h.other, { action: entry.action.toLowerCase().replace(/_/g, " ") });
   }
-  if (entry.newValue != null) return fillTemplate(t.history.set, { field, to: entry.newValue });
-  return fillTemplate(t.history.updated, { field });
 }
 
-export function HistorySection({ taskId }: { taskId: number }) {
+export function HistorySection({ taskId, nameOf }: { taskId: number; nameOf: NameOf }) {
   const loader = useCallback(() => listHistory(taskId), [taskId]);
   const { state, reload } = useRemoteList<TaskHistoryEntry>(loader, t.history.loadError);
 
@@ -311,20 +373,23 @@ export function HistorySection({ taskId }: { taskId: number }) {
 
   return (
     <ol className="relative ml-2 border-l border-slate-200" aria-label={t.tabs.history}>
-      {state.items.map((entry) => (
-        <li key={entry.id} className="mb-4 ml-4 last:mb-0">
-          <span className="absolute -left-1.5 mt-1.5 size-3 rounded-full border-2 border-white bg-slate-300" aria-hidden="true" />
-          <p className="text-sm text-slate-700">
-            {entry.author && <span className="font-semibold text-slate-800">{entry.author.username} </span>}
-            {describe(entry)}
-          </p>
-          {entry.createdAt && (
-            <time className="text-xs text-slate-500" dateTime={String(entry.createdAt)}>
-              {formatDateTime(entry.createdAt)}
-            </time>
-          )}
-        </li>
-      ))}
+      {state.items.map((entry) => {
+        const actor = nameOf(entry.actorId);
+        return (
+          <li key={entry.id} className="mb-4 ml-4 last:mb-0">
+            <span className="absolute -left-1.5 mt-1.5 size-3 rounded-full border-2 border-white bg-slate-300" aria-hidden="true" />
+            <p className="text-sm text-slate-700">
+              {actor && <span className="font-semibold text-slate-800">{actor} </span>}
+              {describe(entry, nameOf)}
+            </p>
+            {entry.createdAt && (
+              <time className="text-xs text-slate-500" dateTime={String(entry.createdAt)}>
+                {formatDateTime(entry.createdAt)}
+              </time>
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }

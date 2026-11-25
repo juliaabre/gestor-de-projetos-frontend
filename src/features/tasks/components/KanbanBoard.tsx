@@ -16,6 +16,7 @@ export function KanbanBoard({
   team,
   movingIds,
   canEditTasks,
+  canMoveTasks,
   canManageColumns,
   onOpenTask,
   onMoveTask,
@@ -28,7 +29,10 @@ export function KanbanBoard({
   allTasks: Task[];
   team: TeamMember[];
   movingIds: Set<number>;
+  /** Criar tarefas (gerente). */
   canEditTasks: boolean;
+  /** Mover tarefas entre colunas (qualquer integrante). */
+  canMoveTasks: boolean;
   canManageColumns: boolean;
   onOpenTask: (task: Task) => void;
   onMoveTask: (taskId: number, status: TaskStatus) => void;
@@ -80,7 +84,7 @@ export function KanbanBoard({
     <div>
       <nav
         aria-label={t.columnNav}
-        className="-mx-4 mb-3 overflow-x-auto px-4 lg:hidden"
+        className="-mx-4 mb-3 overflow-x-auto scrollbar-none px-4 lg:hidden"
       >
         <ul className="flex gap-2">
           {columns.map((column, index) => (
@@ -178,7 +182,7 @@ export function KanbanBoard({
               <ul className="flex flex-1 flex-col gap-2 overflow-y-auto">
                 {columnTasks.length === 0 && (
                   <li className="rounded-xl border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-500">
-                    {canEditTasks ? t.emptyColumnDrop : t.emptyColumn}
+                    {canMoveTasks ? t.emptyColumnDrop : t.emptyColumn}
                   </li>
                 )}
                 {columnTasks.map((task) => {
@@ -197,7 +201,7 @@ export function KanbanBoard({
                           done ? 0 : pendingDependencies(task, allTasks).length
                         }
                         done={done}
-                        canMove={canEditTasks}
+                        canMove={canMoveTasks}
                         moving={movingIds.has(task.id)}
                         dragging={draggingId === task.id}
                         onOpen={() => onOpenTask(task)}

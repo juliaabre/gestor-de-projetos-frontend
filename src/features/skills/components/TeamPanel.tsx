@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FeedbackBanner, useFeedback } from "@/components/FeedbackBanner";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { inputClass, smallButtonClass } from "@/components/ui";
-import { getErrorMessage, isUnavailable } from "@/lib/apiError";
+import { getErrorMessage, isForbidden, isUnavailable } from "@/lib/apiError";
 import { fillTemplate } from "@/lib/format";
 import util from "@/lib/util.json";
 import { Avatar } from "@/features/projects/components/Avatar";
@@ -18,16 +18,19 @@ const t = util.skills;
 
 type MemberSkills =
   | { status: "loading" }
+  /** O backend mostra competências só ao titular e a administradores. */
+  | { status: "private" }
   | { status: "error"; message: string }
   | { status: "success"; skills: Skill[] };
 
 type PanelState = { unavailable: boolean; byMember: Record<number, MemberSkills> };
 
-const LEVEL_STYLE: Record<string, string> = {
-  INICIANTE: "bg-slate-100 text-slate-700",
-  INTERMEDIARIO: "bg-blue-50 text-blue-700",
-  AVANCADO: "bg-emerald-50 text-emerald-700",
-  ESPECIALISTA: "bg-violet-50 text-violet-700",
+const LEVEL_STYLE: Record<number, string> = {
+  1: "bg-slate-100 text-slate-700",
+  2: "bg-slate-100 text-slate-700",
+  3: "bg-blue-50 text-blue-700",
+  4: "bg-emerald-50 text-emerald-700",
+  5: "bg-violet-50 text-violet-700",
 };
 
 export function TeamPanel({
@@ -46,10 +49,17 @@ export function TeamPanel({
   const [toDelete, setToDelete] = useState<{ member: TeamMember; skill: Skill } | null>(null);
   const { feedback, success, clear } = useFeedback();
 
+  // Referência estável: `permissions` é recriado a cada renderização.
+  const permissionsRef = useRef(permissions);
+  permissionsRef.current = permissions;
+
   const loadMember = useCallback(async (memberId: number): Promise<MemberSkills | "unavailable"> => {
+    // O backend só mostra competências ao titular e a administradores: nem pede as dos demais.
+    if (!permissionsRef.current.canEditSkillsOf(memberId)) return { status: "private" };
     try {
       return { status: "success", skills: await listUserSkills(memberId) };
     } catch (error) {
+      if (isForbidden(error)) return { status: "private" };
       if (isUnavailable(error)) return "unavailable";
       return { status: "error", message: getErrorMessage(error, t.loadError) };
     }
@@ -63,7 +73,8 @@ export function TeamPanel({
     });
     Promise.all(team.map((m) => loadMember(m.id))).then((results) => {
       if (!active) return;
-      const unavailable = results.length > 0 && results.every((r) => r === "unavailable");
+      const requested = results.filter((r) => r === "unavailable" || r.status !== "private");
+      const unavailable = requested.length > 0 && requested.every((r) => r === "unavailable");
       setState({
         unavailable,
         byMember: Object.fromEntries(
@@ -102,6 +113,11 @@ export function TeamPanel({
       const skills = current?.status === "success" ? current.skills : [];
       return { ...prev, byMember: { ...prev.byMember, [memberId]: { status: "success", skills: fn(skills) } } };
     });
+
+  const skillsOf = (memberId: number) => {
+    const entry = state.byMember[memberId];
+    return entry?.status === "success" ? entry.skills : [];
+  };
 
   const sortedTeam = useMemo(
     () =>
@@ -193,6 +209,9 @@ export function TeamPanel({
                         <ErrorState title={t.loadError} message={entry.message} onRetry={() => retryMember(member.id)} compact />
                       </div>
                     )}
+                    {entry.status === "private" && (
+                      <p className="mt-2 text-sm text-slate-500">{t.private}</p>
+                    )}
                     {entry.status === "success" && entry.skills.length === 0 && (
                       <p className="mt-2 text-sm italic text-slate-500">{t.noSkills}</p>
                     )}
@@ -265,13 +284,12 @@ export function TeamPanel({
         <SkillFormModal
           userId={form.member.id}
           skill={form.skill}
+          current={skillsOf(form.member.id)}
           onClose={() => setForm(null)}
           onSaved={(saved, mode) => {
             const memberId = form.member.id;
             setForm(null);
-            updateSkills(memberId, (skills) =>
-              mode === "created" ? [...skills, saved] : skills.map((s) => (s.id === saved.id ? saved : s)),
-            );
+            updateSkills(memberId, () => saved);
             success(mode === "created" ? t.feedback.created : t.feedback.updated);
           }}
         />
@@ -288,8 +306,8 @@ export function TeamPanel({
           getError={(error) => getErrorMessage(error, t.deleteDialog.error)}
           onClose={() => setToDelete(null)}
           onConfirm={async () => {
-            await deleteSkill(toDelete.member.id, toDelete.skill.id);
-            updateSkills(toDelete.member.id, (skills) => skills.filter((s) => s.id !== toDelete.skill.id));
+            const saved = await deleteSkill(toDelete.member.id, toDelete.skill.id, skillsOf(toDelete.member.id));
+            updateSkills(toDelete.member.id, () => saved);
             setToDelete(null);
             success(t.feedback.deleted);
           }}

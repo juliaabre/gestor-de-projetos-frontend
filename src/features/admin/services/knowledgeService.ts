@@ -1,127 +1,66 @@
 import { api } from "@/lib/axios";
 import { endpoints } from "@/lib/endpoints";
 import type {
+  ChunkDto,
+  DocumentChunk,
   DocumentDto,
-  DocumentStatus,
-  DomainRule,
+  DomainDto,
+  DomainSettings,
   KnowledgeDocument,
-  RuleDto,
-  TermDto,
-  VocabularyTerm,
 } from "../types";
-
-const STATUS_FROM_API: Record<string, DocumentStatus> = {
-  PENDENTE: "PENDING",
-  PROCESSANDO: "PROCESSING",
-  PROCESSADO: "INDEXED",
-  INDEXADO: "INDEXED",
-  CONCLUIDO: "INDEXED",
-  ERRO: "FAILED",
-  FALHA: "FAILED",
-};
 
 export function toDocument(dto: DocumentDto): KnowledgeDocument {
   return {
     id: dto.id,
-    fileName: dto.nomeArquivo,
-    contentType: dto.tipoConteudo ?? null,
-    size: dto.tamanho ?? null,
-    status: STATUS_FROM_API[(dto.status ?? "").toUpperCase()] ?? "PENDING",
-    errorMessage: dto.mensagemErro ?? null,
-    chunks: dto.quantidadeTrechos ?? null,
-    projectId: dto.projetoId ?? null,
-    createdAt: dto.createdAt,
+    fileName: dto.nome,
+    type: dto.tipo ?? null,
+    chunks: dto.trechos ?? 0,
+    createdAt: dto.criadoEm,
   };
 }
 
-const toRule = (dto: RuleDto): DomainRule => ({
-  id: dto.id,
-  rule: dto.regra,
-  active: dto.ativa ?? true,
-  createdAt: dto.createdAt,
-});
+// ---- Documentos (por projeto) ----
 
-const toTerm = (dto: TermDto): VocabularyTerm => ({
-  id: dto.id,
-  term: dto.termo,
-  definition: dto.definicao ?? "",
-  synonyms: dto.sinonimos ?? [],
-});
-
-// ---- Documentos ----
-
-export async function listDocuments(): Promise<KnowledgeDocument[]> {
-  const { data } = await api.get<DocumentDto[]>(endpoints.admin.documents);
+export async function listDocuments(projectId: number): Promise<KnowledgeDocument[]> {
+  const { data } = await api.get<DocumentDto[]>(endpoints.projects.documents(projectId));
   return data.map(toDocument);
 }
 
-export async function uploadDocument(file: File, projectId: number | null): Promise<KnowledgeDocument> {
+/**
+ * A indexação acontece na própria requisição: o documento volta já indexado.
+ * Erros comuns: 413 (grande demais), 415 (formato), 422 (PDF sem texto) e
+ * 503 (provedor de embeddings desligado).
+ */
+export async function uploadDocument(projectId: number, file: File): Promise<KnowledgeDocument> {
   const form = new FormData();
   form.append("arquivo", file);
-  if (projectId != null) form.append("projetoId", String(projectId));
-  const { data } = await api.post<DocumentDto>(endpoints.admin.documents, form, {
+  const { data } = await api.post<DocumentDto>(endpoints.admin.projectDocuments(projectId), form, {
     headers: { "Content-Type": "multipart/form-data" },
+    timeout: 120_000,
   });
   return toDocument(data);
 }
 
-export async function deleteDocument(id: number): Promise<void> {
-  await api.delete(endpoints.admin.documentById(id));
+export async function deleteDocument(projectId: number, documentId: number): Promise<void> {
+  await api.delete(endpoints.admin.projectDocument(projectId, documentId));
 }
 
-// ---- Regras de domínio ----
-
-export async function listRules(): Promise<DomainRule[]> {
-  const { data } = await api.get<RuleDto[]>(endpoints.admin.rules);
-  return data.map(toRule);
+export async function listChunks(projectId: number, documentId: number): Promise<DocumentChunk[]> {
+  const { data } = await api.get<ChunkDto[]>(endpoints.projects.documentChunks(projectId, documentId));
+  return data.map((chunk) => ({ ref: chunk.id, page: chunk.pagina ?? null, excerpt: chunk.trecho ?? "" }));
 }
 
-export async function createRule(rule: string): Promise<DomainRule> {
-  const { data } = await api.post<RuleDto>(endpoints.admin.rules, { regra: rule, ativa: true });
-  return toRule(data);
+// ---- Regras de domínio e vocabulário ----
+
+export async function getDomain(): Promise<DomainSettings> {
+  const { data } = await api.get<DomainDto>(endpoints.admin.domain);
+  return { rules: data.regras ?? "", vocabulary: data.vocabulario ?? "" };
 }
 
-export async function updateRule(id: number, input: { rule: string; active: boolean }): Promise<DomainRule> {
-  const { data } = await api.put<RuleDto>(endpoints.admin.ruleById(id), {
-    regra: input.rule,
-    ativa: input.active,
+export async function saveDomain(input: DomainSettings): Promise<DomainSettings> {
+  const { data } = await api.post<DomainDto>(endpoints.admin.domain, {
+    regras: input.rules,
+    vocabulario: input.vocabulary,
   });
-  return toRule(data);
-}
-
-export async function deleteRule(id: number): Promise<void> {
-  await api.delete(endpoints.admin.ruleById(id));
-}
-
-// ---- Vocabulário ----
-
-export interface TermInput {
-  term: string;
-  definition: string;
-  synonyms: string[];
-}
-
-const toTermRequest = (input: TermInput) => ({
-  termo: input.term,
-  definicao: input.definition,
-  sinonimos: input.synonyms,
-});
-
-export async function listTerms(): Promise<VocabularyTerm[]> {
-  const { data } = await api.get<TermDto[]>(endpoints.admin.vocabulary);
-  return data.map(toTerm);
-}
-
-export async function createTerm(input: TermInput): Promise<VocabularyTerm> {
-  const { data } = await api.post<TermDto>(endpoints.admin.vocabulary, toTermRequest(input));
-  return toTerm(data);
-}
-
-export async function updateTerm(id: number, input: TermInput): Promise<VocabularyTerm> {
-  const { data } = await api.put<TermDto>(endpoints.admin.termById(id), toTermRequest(input));
-  return toTerm(data);
-}
-
-export async function deleteTerm(id: number): Promise<void> {
-  await api.delete(endpoints.admin.termById(id));
+  return { rules: data.regras ?? "", vocabulary: data.vocabulario ?? "" };
 }

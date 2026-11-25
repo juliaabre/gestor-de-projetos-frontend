@@ -214,6 +214,11 @@
       "teamSearch": "Buscar por nome ou e-mail",
       "teamLoading": "Carregando usuários...",
       "teamError": "Não foi possível carregar os usuários.",
+      "teamForbidden": "Você será o gerente e o primeiro integrante deste projeto. Depois de criá-lo, abra Editar para montar a equipe: a lista de usuários é liberada a gerentes de projeto e administradores.",
+      "teamForbiddenEdit": "A lista de usuários é liberada a gerentes de projeto e administradores. A equipe atual será mantida.",
+      "manager": "gerente",
+      "managerLabel": "Gerente do projeto",
+      "managerHint": "Para transferir a gerência, escolha outro integrante da equipe. A gerência vale apenas para este projeto.",
       "teamEmpty": "Nenhum usuário encontrado.",
       "teamSelected": "{count} selecionado(s)",
       "you": "você",
@@ -258,6 +263,14 @@
     },
     "boardLabel": "Quadro Kanban",
     "columnNav": "Ir para a coluna",
+    "unsavedFields": {
+      "assignee": "responsável",
+      "dueDate": "prazo",
+      "complexity": "complexidade",
+      "requirements": "requisitos",
+      "technologies": "tecnologias",
+      "dependencies": "dependências"
+    },
     "columnCount": "{count} tarefa(s)",
     "editColumn": "Editar coluna {name}",
     "addTask": "Adicionar tarefa",
@@ -298,7 +311,22 @@
       "create": "Criar coluna",
       "save": "Salvar coluna",
       "saving": "Salvando...",
-      "saveError": "Não foi possível salvar a coluna."
+      "saveError": "Não foi possível salvar a coluna.",
+      "position": "Posição no quadro",
+      "positionBefore": "{n}ª posição (antes de \"{name}\")",
+      "positionLast": "{n}ª posição (última)",
+      "delete": "Excluir coluna",
+      "deleteLastHint": "O quadro precisa de ao menos uma coluna.",
+      "unavailable": "O servidor ainda não oferece colunas personalizadas, então o quadro usa as colunas padrão (A fazer, Em andamento, Concluído e Cancelado). Criar, renomear, reordenar e excluir colunas ficará disponível assim que o backend implementar esse recurso."
+    },
+    "columnDelete": {
+      "title": "Excluir a coluna \"{name}\"?",
+      "withTasks": "A coluna tem {count} tarefa(s). Escolha para qual coluna elas serão movidas antes da exclusão.",
+      "empty": "A coluna está vazia. Esta ação não pode ser desfeita.",
+      "moveTo": "Mover as tarefas para",
+      "confirm": "Excluir coluna",
+      "confirming": "Excluindo...",
+      "error": "Não foi possível excluir a coluna."
     },
     "deleteDialog": {
       "title": "Excluir tarefa?",
@@ -316,9 +344,14 @@
       "moveErrorFallback": "erro inesperado.",
       "columnCreated": "Coluna \"{name}\" criada.",
       "columnUpdated": "Coluna \"{name}\" atualizada.",
+      "columnDeleted": "Coluna \"{name}\" excluída.",
+      "columnDeletedMoved": "Coluna \"{name}\" excluída. Suas tarefas foram movidas para \"{target}\".",
       "taskNotFound": "A tarefa citada não pertence a este projeto ou foi excluída.",
       "dependenciesRegistered": "Dependências de \"{title}\" registradas.",
       "assigned": "\"{title}\" atribuída a {name}.",
+      "notSaved": "\"{title}\" foi salva, mas o servidor não gravou: {fields}. Esses dados dependem de suporte do backend.",
+      "assignNotSaved": "O servidor não gravou o responsável de \"{title}\" (a tarefa continua sem {name} como responsável). Esse recurso depende de suporte do backend.",
+      "dependenciesNotSaved": "O servidor não gravou as dependências de \"{title}\". Esse recurso depende de suporte do backend.",
       "recommendationRejected": "Recomendação para \"{title}\" recusada. Nenhum responsável foi atribuído."
     }
   },
@@ -360,7 +393,8 @@
       "titleRequired": "Informe o título da tarefa.",
       "titleTooLong": "O título deve ter no máximo 255 caracteres.",
       "textTooLong": "O texto deve ter no máximo 5000 caracteres.",
-      "technologiesTooMany": "Adicione no máximo 15 tecnologias.",
+      "requirementsTooLong": "Os requisitos devem ter no máximo 10000 caracteres.",
+      "technologiesTooMany": "Adicione no máximo 30 tecnologias.",
       "statusRequired": "Selecione o status.",
       "priorityRequired": "Selecione a prioridade.",
       "dueDateInvalid": "Informe uma data válida."
@@ -424,6 +458,9 @@
         "uploadError": "Não foi possível enviar o anexo.",
         "downloadError": "Não foi possível baixar o anexo.",
         "download": "Baixar {name}",
+        "delete": "Excluir {name}",
+        "confirmDelete": "Excluir o anexo \"{name}\"? Esta ação não pode ser desfeita.",
+        "deleteError": "Não foi possível excluir o anexo.",
         "empty": "Nenhum anexo.",
         "unavailable": "Anexos não estão disponíveis no servidor."
       },
@@ -432,10 +469,12 @@
         "loadError": "Não foi possível carregar o histórico.",
         "empty": "Nenhuma alteração registrada.",
         "unavailable": "O histórico de alterações não está disponível para esta tarefa.",
-        "someField": "um campo",
-        "changed": "alterou {field} de \"{from}\" para \"{to}\"",
-        "set": "definiu {field} como \"{to}\"",
-        "updated": "atualizou {field}"
+        "created": "criou a tarefa em \"{status}\"",
+        "status": "moveu para \"{status}\"",
+        "assigned": "definiu {name} como responsável",
+        "unassigned": "removeu o responsável",
+        "updated": "editou a tarefa",
+        "other": "registrou: {action}"
       },
       "suggestAssignee": "Sugerir responsável"
     }
@@ -454,6 +493,7 @@
     "technologies": "Tecnologias",
     "loading": "Carregando competências...",
     "loadError": "Não foi possível carregar as competências.",
+    "private": "As competências ficam visíveis apenas para o próprio integrante e para administradores.",
     "noSkills": "Nenhuma competência cadastrada.",
     "add": "Adicionar competência",
     "edit": "Editar competência {name}",
@@ -471,7 +511,7 @@
       "saving": "Salvando...",
       "saveError": "Não foi possível salvar a competência.",
       "technologiesRequired": "Adicione ao menos uma tecnologia.",
-      "technologiesTooMany": "Adicione no máximo 15 tecnologias.",
+      "technologiesTooMany": "Adicione no máximo 50 tecnologias.",
       "activityRequired": "Selecione o tipo de atividade.",
       "levelRequired": "Selecione o nível de experiência."
     },
@@ -490,6 +530,8 @@
   },
   "ai": {
     "shared": {
+      "fallbackNotice": "Resposta alternativa: a síntese automática não está disponível, então os dados vêm direto das fontes. Confira antes de decidir.",
+      "pageSource": "{title} · p. {page}",
       "badge": "IA",
       "sources": "Fontes citadas",
       "noSources": "Nenhuma fonte citada.",
@@ -511,7 +553,7 @@
       "unavailable": "A recomendação por IA está indisponível no momento. Você pode atribuir o responsável manualmente.",
       "empty": "A IA não encontrou integrantes recomendados para esta tarefa. Você pode atribuir manualmente.",
       "ranking": "Recomendados para esta tarefa",
-      "fallback": "IA indisponível: este ranking foi calculado por pontuação simples (competências e carga atual).",
+      "fallback": "Síntese do modelo indisponível: o ranking usa a pontuação calculada pelo servidor (competências, conclusões, desempenho e carga no projeto).",
       "load": "Carga atual: {count} tarefa(s)",
       "skills": "Competências",
       "viewSources": "Ver fontes ({count})",
@@ -529,6 +571,7 @@
       "decisionNotRecorded": "O responsável foi atribuído, mas a decisão sobre a recomendação não foi registrada."
     },
     "assistant": {
+      "historyLocal": "A conversa fica salva só nesta aba do navegador.",
       "title": "Assistente do projeto",
       "conversation": "Conversa com o assistente",
       "historyLoading": "Carregando conversa...",
@@ -551,6 +594,13 @@
       "disclaimer": "Respostas geradas por IA a partir dos dados aos quais você tem acesso. Confira as fontes."
     },
     "summary": {
+      "period": "Filtrar o resumo pelo prazo das tarefas",
+      "periodStart": "Prazo a partir de",
+      "periodEnd": "Prazo até",
+      "periodApply": "Aplicar período",
+      "periodHint": "Opcional: informe as duas datas, ou deixe ambas em branco para resumir o projeto inteiro.",
+      "periodBoth": "Informe as duas datas do período, ou deixe ambas em branco.",
+      "periodInvalid": "A data inicial deve ser anterior à final.",
       "title": "Resumo do andamento",
       "scope": "Período do resumo",
       "scopeProject": "Projeto inteiro",
@@ -567,6 +617,7 @@
       "noBottlenecks": "Nenhum gargalo identificado: sem tarefas paradas ou integrantes sobrecarregados."
     },
     "description": {
+      "saveFirst": "A geração de descrição com IA fica disponível depois que a tarefa é salva.",
       "instruction": "Instrução para a IA (opcional)",
       "instructionPlaceholder": "Instrução opcional, ex.: \"inclua critérios de aceite\"",
       "generate": "Gerar descrição",
@@ -584,11 +635,12 @@
       "discard": "Descartar"
     },
     "dependencies": {
+      "answer": "Ver a análise completa da IA",
       "suggest": "Sugerir dependências com IA",
       "badge": "Sugestões",
-      "hint": "Não confirmadas. Selecione as que deseja registrar.",
+      "hint": "Tarefas citadas pela IA, ainda não confirmadas. Selecione as que são de fato pré-requisitos.",
       "loading": "Analisando tarefas do projeto...",
-      "empty": "A IA não encontrou novas dependências para esta tarefa.",
+      "empty": "A IA não citou outras tarefas como possíveis dependências.",
       "unavailable": "A sugestão de dependências está indisponível no momento.",
       "error": "Não foi possível sugerir dependências.",
       "listLabel": "Dependências sugeridas",
@@ -602,46 +654,34 @@
     "page": {
       "eyebrow": "Administração da IA",
       "title": "Base de conhecimento",
-      "description": "Documentos, regras e vocabulário que orientam as respostas e recomendações da IA."
+      "description": "Documentos por projeto, regras de domínio e vocabulário que orientam as respostas e recomendações da IA."
     },
     "tabs": {
       "label": "Seções da base de conhecimento",
       "documents": "Documentos",
-      "rules": "Regras de domínio",
-      "vocabulary": "Vocabulário"
+      "domain": "Regras e vocabulário"
     },
     "documents": {
       "uploadTitle": "Enviar documento",
-      "uploadDescription": "O documento é processado, dividido em trechos e indexado para consulta pela IA.",
+      "uploadDescription": "O documento é dividido em trechos e indexado na hora para consulta pela IA neste projeto.",
       "file": "Arquivo",
-      "hint": "PDF, Markdown ou texto, até {max}.",
+      "hint": "PDF com texto extraível, Markdown ou texto UTF-8, até {max}.",
       "fileRequired": "Selecione um arquivo.",
       "invalidType": "Formato não suportado. Envie PDF (.pdf), Markdown (.md) ou texto (.txt).",
       "emptyFile": "O arquivo está vazio.",
       "tooLarge": "O arquivo excede o limite de {max}.",
-      "scope": "Acesso",
-      "scopeHint": "A IA só usa o documento para quem tem acesso ao projeto escolhido.",
-      "global": "Global (todos os projetos)",
-      "projectFallback": "Projeto #{id}",
       "upload": "Enviar documento",
-      "uploading": "Enviando...",
-      "uploaded": "\"{name}\" enviado. O processamento pode levar alguns minutos.",
+      "uploading": "Indexando...",
+      "uploaded": "\"{name}\" indexado em {count} trecho(s).",
       "uploadError": "Não foi possível enviar o documento.",
       "listTitle": "Documentos indexados",
-      "polling": "Atualizando status...",
       "loading": "Carregando documentos...",
       "loadError": "Não foi possível carregar os documentos.",
       "emptyTitle": "Nenhum documento enviado",
       "emptyDescription": "Envie guias, especificações e manuais para a IA usar como fonte.",
       "unavailableTitle": "Base de conhecimento indisponível",
-      "unavailable": "O servidor ainda não oferece a ingestão de documentos.",
+      "unavailable": "O servidor não oferece documentos para este projeto.",
       "chunks": "{count} trecho(s)",
-      "status": {
-        "pending": "Na fila",
-        "processing": "Processando",
-        "indexed": "Indexado",
-        "failed": "Falhou"
-      },
       "delete": "Remover {name}",
       "deleted": "\"{name}\" removido da base de conhecimento.",
       "deleteDialog": {
@@ -650,85 +690,34 @@
         "confirm": "Remover",
         "confirming": "Removendo...",
         "error": "Não foi possível remover o documento."
-      }
+      },
+      "project": "Projeto",
+      "projectHint": "Os documentos alimentam a IA apenas no projeto escolhido. Aparecem os projetos ativos dos quais você participa.",
+      "projectsLoading": "Carregando projetos...",
+      "projectsError": "Não foi possível carregar os projetos.",
+      "noProjectsTitle": "Nenhum projeto ativo",
+      "noProjects": "Para indexar documentos, o administrador precisa integrar a equipe de um projeto ativo.",
+      "viewChunks": "Ver trechos indexados",
+      "chunksLoading": "Carregando trechos...",
+      "chunksError": "Não foi possível carregar os trechos.",
+      "chunkPage": "{ref} · p. {page}"
     },
-    "rules": {
-      "newTitle": "Nova regra",
-      "description": "Regras de domínio orientam a IA (ex.: políticas de alocação, termos da área, restrições). Regras inativas são ignoradas.",
-      "label": "Texto da regra",
-      "placeholder": "Ex.: Tarefas de segurança só devem ser atribuídas a integrantes de nível avançado.",
-      "create": "Adicionar regra",
-      "save": "Salvar",
-      "required": "Escreva a regra.",
-      "tooShort": "A regra deve ter ao menos {min} caracteres.",
-      "tooLong": "A regra deve ter no máximo {max} caracteres.",
-      "saveError": "Não foi possível salvar a regra.",
-      "listTitle": "Regras cadastradas",
-      "loading": "Carregando regras...",
-      "loadError": "Não foi possível carregar as regras.",
-      "emptyTitle": "Nenhuma regra cadastrada",
-      "emptyDescription": "Sem regras, a IA usa apenas os dados do projeto e a base de conhecimento.",
-      "unavailableTitle": "Regras indisponíveis",
-      "unavailable": "O servidor ainda não oferece a configuração de regras de domínio.",
-      "active": "Ativa",
-      "inactive": "Inativa",
-      "activated": "Regra ativada.",
-      "deactivated": "Regra desativada.",
-      "edit": "Editar regra",
-      "delete": "Excluir regra",
-      "created": "Regra adicionada.",
-      "updated": "Regra atualizada.",
-      "deleted": "Regra excluída.",
-      "deleteDialog": {
-        "title": "Excluir regra?",
-        "description": "A regra deixará de orientar a IA. Para suspendê-la temporariamente, desative-a.",
-        "confirm": "Excluir",
-        "confirming": "Excluindo...",
-        "error": "Não foi possível excluir a regra."
-      }
-    },
-    "vocabulary": {
-      "description": "Termos e sinônimos do domínio, para a IA interpretar perguntas e documentos de outras áreas além de software.",
-      "newTerm": "Novo termo",
-      "createTitle": "Novo termo",
-      "editTitle": "Editar termo",
-      "term": "Termo",
-      "termPlaceholder": "Ex.: Sprint",
-      "definition": "Definição",
-      "definitionPlaceholder": "O que o termo significa neste domínio",
-      "synonyms": "Sinônimos",
-      "synonymsPlaceholder": "Ex.: iteração, ciclo",
-      "create": "Adicionar termo",
-      "save": "Salvar alterações",
+    "domain": {
+      "description": "Estes textos são enviados à IA como contexto em todas as consultas, recomendações e sugestões.",
+      "rules": "Regras de domínio",
+      "rulesHint": "Obrigatório. Políticas e restrições da área.",
+      "rulesPlaceholder": "Ex.: Tarefas de segurança só devem ser atribuídas a integrantes de nível 4 ou 5.",
+      "vocabulary": "Vocabulário",
+      "vocabularyHint": "Opcional. Termos da área e seus significados.",
+      "vocabularyPlaceholder": "Ex.: Sprint: ciclo de duas semanas. PR: pull request.",
+      "rulesRequired": "Escreva ao menos uma regra de domínio.",
+      "tooLong": "O texto deve ter no máximo 4000 caracteres.",
+      "loading": "Carregando configuração...",
+      "loadError": "Não foi possível carregar as regras de domínio.",
+      "save": "Salvar configuração",
       "saving": "Salvando...",
-      "saveError": "Não foi possível salvar o termo.",
-      "termRequired": "Informe o termo.",
-      "termTooLong": "O termo deve ter no máximo 100 caracteres.",
-      "termDuplicate": "Este termo já está cadastrado.",
-      "definitionRequired": "Informe a definição.",
-      "definitionTooLong": "A definição deve ter no máximo 1000 caracteres.",
-      "synonymsTooMany": "Adicione no máximo 20 sinônimos.",
-      "search": "Buscar termo, definição ou sinônimo",
-      "noResults": "Nenhum termo corresponde à busca.",
-      "listTitle": "Vocabulário do domínio",
-      "loading": "Carregando vocabulário...",
-      "loadError": "Não foi possível carregar o vocabulário.",
-      "emptyTitle": "Nenhum termo cadastrado",
-      "emptyDescription": "Cadastre os termos próprios da área do projeto.",
-      "unavailableTitle": "Vocabulário indisponível",
-      "unavailable": "O servidor ainda não oferece a configuração de vocabulário.",
-      "edit": "Editar {term}",
-      "delete": "Excluir {term}",
-      "created": "Termo \"{term}\" adicionado.",
-      "updated": "Termo \"{term}\" atualizado.",
-      "deleted": "Termo \"{term}\" excluído.",
-      "deleteDialog": {
-        "title": "Excluir termo?",
-        "description": "\"{term}\" e seus sinônimos deixarão de ser considerados pela IA.",
-        "confirm": "Excluir",
-        "confirming": "Excluindo...",
-        "error": "Não foi possível excluir o termo."
-      }
+      "saved": "Regras e vocabulário salvos.",
+      "saveError": "Não foi possível salvar a configuração."
     }
   }
 }

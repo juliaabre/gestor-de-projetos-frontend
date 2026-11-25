@@ -109,6 +109,8 @@ export function TaskDetailsModal({
 }) {
   const [tab, setTab] = useState<Tab>("comments");
   const assignee = team.find((member) => member.id === task.assigneeId) ?? null;
+  const nameOf = (userId: number | null | undefined) =>
+    userId == null ? null : (team.find((member) => member.id === userId)?.username ?? null);
   const columnName = (status: TaskStatus) => columns.find((c) => c.status === status)?.name ?? status;
 
   const dependsOn = task.dependencyIds
@@ -121,7 +123,7 @@ export function TaskDetailsModal({
       <div className="flex flex-col gap-6">
         {banner}
         <div className="flex flex-wrap items-center gap-2">
-          {permissions.canEditTasks ? (
+          {permissions.canMoveTasks ? (
             <label className="flex items-center gap-2 text-sm text-slate-600">
               {t.status}
               <select
@@ -285,12 +287,17 @@ export function TaskDetailsModal({
           </div>
           <div role="tabpanel" id={`task-panel-${tab}`} aria-labelledby={`task-tab-${tab}`} className="pt-4">
             {tab === "comments" && (
-              <CommentsSection taskId={task.id} canComment={permissions.canCollaborate} />
+              <CommentsSection taskId={task.id} canComment={permissions.canCollaborate} nameOf={nameOf} />
             )}
             {tab === "attachments" && (
-              <AttachmentsSection taskId={task.id} canUpload={permissions.canCollaborate} />
+              <AttachmentsSection
+                taskId={task.id}
+                canUpload={permissions.canCollaborate}
+                canDelete={permissions.canDeleteTasks}
+                nameOf={nameOf}
+              />
             )}
-            {tab === "history" && <HistorySection taskId={task.id} />}
+            {tab === "history" && <HistorySection taskId={task.id} nameOf={nameOf} />}
           </div>
         </div>
       </div>

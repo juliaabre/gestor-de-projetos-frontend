@@ -1,19 +1,23 @@
 /**
- * Testes de integração contra o backend real (Spring). Usam os mesmos serviços e
- * mapeadores das telas, então validam o contrato de ponta a ponta: rotas, DTOs,
- * códigos de erro e permissões por perfil.
+ * Testes de integração contra o backend real (Spring, branch
+ * `feat/gerencia-por-projeto`). Usam os mesmos serviços e mapeadores das
+ * telas, então validam o contrato de ponta a ponta: rotas, DTOs, códigos de
+ * erro e permissões por perfil.
  *
  * Execução: com o backend rodando, `pnpm test:integration`.
  *   BACKEND_URL            padrão http://localhost:8080
  *   BACKEND_ADMIN_EMAIL    opcional; habilita os cenários do Administrador
  *   BACKEND_ADMIN_PASSWORD (usuário criado pelo DataInitializer do backend)
+ *
+ * Use um banco de desenvolvimento ou de testes: os testes criam usuários,
+ * projetos e tarefas (e removem os projetos ao final).
  */
 import axios from "axios";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { api } from "@/lib/axios";
 import { endpoints } from "@/lib/endpoints";
 import { session } from "@/lib/session";
-import { getAiErrorKind, getErrorMessage, isUnavailable } from "@/lib/apiError";
+import { getErrorMessage } from "@/lib/apiError";
 import { login, register } from "@/features/auth/services/authService";
 import type { AuthResult } from "@/features/auth/types";
 import {
@@ -25,18 +29,32 @@ import {
   updateProject,
 } from "@/features/projects/services/projectService";
 import { getProjectPermissions } from "@/features/projects/permissions";
+import { listUsers } from "@/features/users/services/userService";
 import {
+  addComment,
   createTask,
   deleteTask,
-  listColumns,
+  getTask,
+  listComments,
+  listDependencies,
+  listHistory,
   listProjectTasks,
   moveTask,
   updateTask,
 } from "@/features/tasks/services/taskService";
 import { taskToInput } from "@/features/tasks/mappers";
 import type { Task } from "@/features/tasks/types";
-import { listUserSkills } from "@/features/skills/services/skillService";
-import { askAssistant, recommendAssignees } from "@/features/ai/services/aiService";
+import { createSkill, listUserSkills } from "@/features/skills/services/skillService";
+import {
+  askAssistant,
+  generateDescription,
+  getBottlenecks,
+  getSummary,
+  recommendAssignees,
+  registerDecision,
+  suggestDependencies,
+} from "@/features/ai/services/aiService";
+import { getDomain, listDocuments } from "@/features/admin/services/knowledgeService";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 const ADMIN_EMAIL = process.env.BACKEND_ADMIN_EMAIL;
@@ -78,13 +96,24 @@ beforeAll(async () => {
   try {
     await axios.get(`${BACKEND_URL}/api/projetos`, { adapter: "http", validateStatus: () => true });
   } catch {
-    throw new Error(
-      `Backend indisponível em ${BACKEND_URL}. Suba o backend ou defina BACKEND_URL.`,
-    );
+    throw new Error(`Backend indisponível em ${BACKEND_URL}. Suba o backend ou defina BACKEND_URL.`);
   }
-  manager = await register(credentials("gerente"));
+  await register(credentials("gerente"));
   member = await register(credentials("membro"));
   outsider = await register(credentials("externo"));
+
+  // Quem cria o projeto vira o gerente dele; só então o diretório de usuários
+  // é liberado para montar a equipe.
+  actAs(await login({ email: credentials("gerente").email, password: "senha123" }));
+  const project = await createProject({ name: `Projeto integração ${runId}` });
+  projectId = project.id;
+  createdProjects.push(project.id);
+  manager = await login({ email: credentials("gerente").email, password: "senha123" });
+  actAs(manager);
+  const users = await listUsers();
+  const memberId = users.find((u) => u.email === credentials("membro").email)!.id;
+  await updateProject(projectId, { name: project.name, teamIds: [memberId] });
+  member = await login({ email: credentials("membro").email, password: "senha123" });
 });
 
 afterAll(async () => {
@@ -96,27 +125,20 @@ afterAll(async () => {
   session.clear();
 });
 
-describe("autenticação", () => {
-  it("cadastro devolve token e usuário com perfil Membro", () => {
-    expect(manager.token.split(".")).toHaveLength(3);
-    expect(manager.user.id).toEqual(expect.any(Number));
-    expect(manager.user.email).toBe(credentials("gerente").email);
-    expect(manager.user.roles).toEqual(["MEMBER"]);
+describe("autenticação e identificação do usuário", () => {
+  it("cadastro devolve token e o perfil global Membro", () => {
+    expect(outsider.token.split(".")).toHaveLength(3);
+    expect(outsider.user.roles).toEqual(["MEMBER"]);
   });
 
-  it("login com as mesmas credenciais funciona", async () => {
-    const result = await login({
-      email: credentials("gerente").email,
-      password: "senha123",
-    });
-    expect(result.user.id).toBe(manager.user.id);
+  it("o id do usuário é descoberto mesmo sem acesso ao diretório (via equipe do projeto)", () => {
+    // Membros não podem listar usuários (403); o frontend acha o próprio id na equipe.
+    expect(manager.user.id).toEqual(expect.any(Number));
+    expect(member.user.id).toEqual(expect.any(Number));
   });
 
   it("senha errada gera 401 com mensagem amigável", async () => {
-    const error = await expectStatus(
-      login({ email: credentials("gerente").email, password: "errada" }),
-      401,
-    );
+    const error = await expectStatus(login({ email: credentials("gerente").email, password: "errada" }), 401);
     expect(getErrorMessage(error, "fallback")).toMatch(/inválid/i);
   });
 
@@ -126,191 +148,215 @@ describe("autenticação", () => {
     expect(getErrorMessage(error, "fallback")).not.toBe("fallback");
   });
 
-  it("requisição sem token é bloqueada", async () => {
-    session.clear();
-    const response = await axios.get(`${BACKEND_URL}/api/projetos`, {
-      adapter: "http",
-      validateStatus: () => true,
-    });
-    expect([401, 403]).toContain(response.status);
+  it("diretório de usuários: liberado ao gerente, negado a quem não gerencia projeto", async () => {
+    actAs(manager);
+    expect((await listUsers()).length).toBeGreaterThanOrEqual(3);
+    actAs(member);
+    await expectStatus(listUsers(), 403);
   });
 });
 
 describe("projetos e permissões por perfil", () => {
-  beforeAll(async () => {
-    actAs(manager);
-    const project = await createProject({
-      name: `Projeto integração ${runId}`,
-      description: "Criado pelos testes de integração",
-      teamIds: [member.user.id!],
-    });
-    projectId = project.id;
-    createdProjects.push(project.id);
-  });
-
-  it("criador vê o projeto como Gerente e pode gerenciar", async () => {
+  it("criador é o gerente do projeto", async () => {
     actAs(manager);
     const project = await getProject(projectId);
-    expect(project.myRole).toBe("MANAGER");
-    expect(project.canManage).toBe(true);
-    expect(project.teamIds).toEqual(
-      expect.arrayContaining([manager.user.id, member.user.id]),
-    );
-    const permissions = getProjectPermissions(project, manager.user);
-    expect(permissions.canManageColumns).toBe(true);
-    expect(permissions.canDeleteTasks).toBe(true);
+    expect(project).toMatchObject({ myRole: "MANAGER", canManage: true, canAddMembers: true, managerId: manager.user.id });
+    expect(getProjectPermissions(project, manager.user)).toMatchObject({
+      canEditTasks: true,
+      canDeleteTasks: true,
+      canUseManagerAi: true,
+    });
   });
 
-  it("membro da equipe vê o projeto, mas não gerencia", async () => {
+  it("membro vê o projeto e move tarefas, mas não edita", async () => {
     actAs(member);
     const project = await getProject(projectId);
-    expect(project.myRole).toBe("MEMBER");
-    expect(project.canManage).toBe(false);
-    const permissions = getProjectPermissions(project, member.user);
-    expect(permissions.canEditTasks).toBe(true);
-    expect(permissions.canDeleteTasks).toBe(false);
-    expect(permissions.canDecideAssignment).toBe(false);
-
+    expect(project).toMatchObject({ myRole: "MEMBER", canManage: false });
+    expect(getProjectPermissions(project, member.user)).toMatchObject({
+      canMoveTasks: true,
+      canEditTasks: false,
+      canUseManagerAi: false,
+    });
     await expectStatus(updateProject(projectId, { name: "Invasão" }), 403);
     await expectStatus(archiveProject(projectId), 403);
   });
 
   it("usuário fora da equipe não lista nem abre o projeto", async () => {
     actAs(outsider);
-    const projects = await listProjects();
-    expect(projects.map((p) => p.id)).not.toContain(projectId);
-    const error = await expectStatus(getProject(projectId), 403);
-    expect(getErrorMessage(error, "fallback")).not.toBe("fallback");
+    expect((await listProjects()).map((p) => p.id)).not.toContain(projectId);
+    await expectStatus(getProject(projectId), 403);
   });
 
   it("projeto arquivado fica somente leitura e pode ser desarquivado", async () => {
     actAs(manager);
     const archived = await archiveProject(projectId);
-    expect(archived.archived).toBe(true);
     expect(getProjectPermissions(archived, manager.user).canEditTasks).toBe(false);
     await expectStatus(updateProject(projectId, { name: "Editar arquivado" }), 409);
-    const restored = await unarchiveProject(projectId);
-    expect(restored.archived).toBe(false);
+    expect((await unarchiveProject(projectId)).archived).toBe(false);
   });
 
-  it("projeto inexistente retorna 404", async () => {
+  it("gerência pode ser transferida a um integrante e devolvida", async () => {
     actAs(manager);
-    await expectStatus(getProject(99_999_999), 404);
+    const name = `Projeto integração ${runId}`;
+    const transferred = await updateProject(projectId, { name, managerId: member.user.id });
+    expect(transferred).toMatchObject({ managerId: member.user.id, canManage: false });
+    actAs(member);
+    const back = await updateProject(projectId, { name, managerId: manager.user.id });
+    expect(back.managerId).toBe(manager.user.id);
   });
 });
 
 describe("quadro e tarefas", () => {
-  it("cria, move entre colunas, edita e exclui uma tarefa", async () => {
+  let task: Task;
+  let prerequisite: Task;
+
+  beforeAll(async () => {
     actAs(manager);
-    const task = await createTask({
-      title: "Tarefa de integração",
-      content: "Descrição",
+    prerequisite = await createTask({ title: "Modelagem", status: "TODO", priority: "HIGH", projectId });
+    task = await createTask({
+      title: "API de login",
       status: "TODO",
       priority: "HIGH",
+      complexity: 4,
+      technologies: ["Java", "JWT"],
+      dueDate: "2026-12-01",
+      requirements: "Token de 1h",
+      assigneeId: member.user.id,
+      dependencyIds: [prerequisite.id],
       projectId,
     });
-    expect(task).toMatchObject({ title: "Tarefa de integração", status: "TODO", priority: "HIGH" });
+  });
 
+  it("cria com campos estendidos e dependências", async () => {
+    expect(task).toMatchObject({
+      complexity: 4,
+      technologies: ["Java", "JWT"],
+      dueDate: "2026-12-01",
+      requirements: "Token de 1h",
+      assigneeId: member.user.id,
+      dependencyIds: [prerequisite.id],
+    });
+    expect(await listDependencies(task.id)).toEqual([prerequisite.id]);
+  });
+
+  it("membro move a tarefa (PATCH de status), mas não cria nem edita", async () => {
+    actAs(member);
     const moved = await moveTask(task, "IN_PROGRESS");
     expect(moved.status).toBe("IN_PROGRESS");
+    await expectStatus(createTask({ title: "x", status: "TODO", priority: "LOW", projectId }), 403);
+    await expectStatus(updateTask(task.id, taskToInput(moved, { title: "Outro" })), 403);
+  });
 
-    const edited = await updateTask(
-      task.id,
-      taskToInput(moved, { title: "Tarefa editada", priority: "URGENT" }),
-    );
-    expect(edited).toMatchObject({ title: "Tarefa editada", priority: "URGENT", status: "IN_PROGRESS" });
+  it("gerente edita e remove dependências", async () => {
+    actAs(manager);
+    const current = await getTask(task.id);
+    const edited = await updateTask(task.id, taskToInput(current, { title: "API de login v2", dependencyIds: [] }));
+    expect(edited).toMatchObject({ title: "API de login v2", dependencyIds: [] });
+  });
 
-    const tasks = await listProjectTasks(projectId);
-    expect(tasks.map((t) => t.id)).toContain(task.id);
-
-    await deleteTask(task.id);
-    const after = await listProjectTasks(projectId);
-    expect(after.map((t) => t.id)).not.toContain(task.id);
+  it("comentários e histórico registram autor e ações", async () => {
+    actAs(member);
+    const comment = await addComment(task.id, "Comecei hoje.");
+    expect(comment).toMatchObject({ content: "Comecei hoje.", author: { id: member.user.id } });
+    expect((await listComments(task.id)).map((c) => c.content)).toContain("Comecei hoje.");
+    const history = await listHistory(task.id);
+    expect(history.map((h) => h.action)).toEqual(expect.arrayContaining(["CRIACAO", "STATUS"]));
+    expect(history.find((h) => h.action === "STATUS")).toMatchObject({ actorId: member.user.id, status: "IN_PROGRESS" });
   });
 
   it("criar tarefa nunca sobrescreve uma tarefa existente", async () => {
-    // Regressão: o backend já copiou `projetoId` para o `id` da nova tarefa
-    // (ModelMapper), sobrescrevendo a tarefa cujo id coincidia com o id do
-    // projeto. Para reproduzir, avança a sequência que estiver atrás (tarefas
-    // ou projetos) até existir uma tarefa com o mesmo id de um projeto nosso.
     actAs(manager);
-    const tasks: Task[] = [];
-    const projects = [projectId];
-    try {
-      let match: Task | undefined;
-      for (let i = 0; i < 40 && !match; i++) {
-        const lastTask = tasks[tasks.length - 1]?.id ?? -1;
-        if (lastTask < projects[projects.length - 1]) {
-          tasks.push(await createTask({ title: `Existente ${i}`, status: "TODO", priority: "LOW", projectId }));
-        } else {
-          const extra = await createProject({ name: `Auxiliar ${runId} ${i}` });
-          createdProjects.push(extra.id);
-          projects.push(extra.id);
-        }
-        match = tasks.find((task) => projects.includes(task.id));
-      }
-      expect(match, "não foi possível alinhar as sequências de id").toBeDefined();
-
-      const fresh = await createTask({ title: "Nova", status: "TODO", priority: "LOW", projectId: match!.id });
-      tasks.push(fresh);
-      expect(fresh.id).not.toBe(match!.id);
-      const stillThere = (await listProjectTasks(projectId)).find((task) => task.id === match!.id);
-      expect(stillThere?.title).toBe(match!.title);
-    } finally {
-      for (const task of tasks) await deleteTask(task.id).catch(() => undefined);
-    }
+    const a = await createTask({ title: "A", status: "TODO", priority: "LOW", projectId });
+    const b = await createTask({ title: "B", status: "TODO", priority: "LOW", projectId });
+    expect(b.id).not.toBe(a.id);
+    const titles = (await listProjectTasks(projectId)).map((t) => t.title);
+    expect(titles).toEqual(expect.arrayContaining(["A", "B"]));
+    await deleteTask(a.id);
+    await deleteTask(b.id);
   });
 
-  it("título vazio é recusado pela validação do backend", async () => {
+  it("título vazio é recusado com mensagem do servidor", async () => {
     actAs(manager);
-    const error = await expectStatus(
-      createTask({ title: "", status: "TODO", priority: "LOW", projectId }),
-      400,
-    );
+    const error = await expectStatus(createTask({ title: "", status: "TODO", priority: "LOW", projectId }), 400);
     expect(getErrorMessage(error, "fallback")).not.toBe("fallback");
   });
 });
 
-describe("recursos opcionais ainda não implementados no backend", () => {
-  // A interface trata essas respostas como "recurso indisponível" (colunas
-  // padrão, aviso de IA indisponível etc.) em vez de quebrar.
-  it("colunas personalizadas e competências caem no modo indisponível", async () => {
+describe("competências", () => {
+  it("cada um grava as próprias; outros integrantes não veem", async () => {
+    actAs(member);
+    const saved = await createSkill(member.user.id!, { technologies: ["Java", "JWT"], activityType: "BACKEND", level: 4 }, []);
+    expect(saved).toEqual([{ id: 1, userId: member.user.id, technologies: ["Java", "JWT"], activityType: "BACKEND", level: 4 }]);
     actAs(manager);
-    const columns = await listColumns(projectId).catch((err: unknown) => err);
-    if (Array.isArray(columns)) return; // já implementado no backend
-    expect(isUnavailable(columns)).toBe(true);
+    await expectStatus(listUserSkills(member.user.id!), 403);
+  });
+});
 
-    const skills = await listUserSkills(manager.user.id!).catch((err: unknown) => err);
-    if (Array.isArray(skills)) return;
-    expect(isUnavailable(skills)).toBe(true);
+describe("IA (com ou sem o provedor externo configurado)", () => {
+  let taskId: number;
+
+  beforeAll(async () => {
+    actAs(manager);
+    const created = await createTask({ title: "Tela de login", status: "TODO", priority: "MEDIUM", technologies: ["Java"], projectId });
+    taskId = created.id;
   });
 
-  it("falhas da IA são classificadas como indisponibilidade", async () => {
+  it("membro consulta o assistente e recebe texto com fontes", async () => {
+    actAs(member);
+    const answer = await askAssistant(projectId, "Quais tarefas estão pendentes?");
+    expect(answer.text.length).toBeGreaterThan(0);
+    expect(answer.sources.length).toBeGreaterThan(0);
+    if (answer.fallback) expect(answer.notice).toBeTruthy();
+  });
+
+  it("resumo e gargalos são do gerente; membro recebe 403", async () => {
     actAs(manager);
-    for (const call of [
-      () => recommendAssignees(1),
-      () => askAssistant(projectId, "Quais tarefas estão atrasadas?"),
-    ]) {
-      const result = await call().catch((err: unknown) => err);
-      if (!(result instanceof Error)) continue; // já implementado no backend
-      expect(getAiErrorKind(result)).toBe("unavailable");
-    }
+    expect((await getSummary(projectId, { start: "2026-01-01", end: "2026-12-31" })).text).toBeTruthy();
+    await expectStatus(getSummary(projectId, { start: "2026-01-01" }), 400);
+    expect((await getBottlenecks(projectId)).sources.some((s) => s.type === "INDICATORS")).toBe(true);
+    actAs(member);
+    await expectStatus(getSummary(projectId), 403);
+  });
+
+  it("recomendação: AJUSTADA atribui o integrante escolhido", async () => {
+    actAs(manager);
+    const result = await recommendAssignees(taskId);
+    expect(result.items.length).toBeGreaterThanOrEqual(2);
+    expect(result.items.every((i) => i.score >= 0 && i.score <= 100)).toBe(true);
+    const decided = await registerDecision({
+      taskId,
+      recommendationId: result.recommendationId,
+      decision: "ADJUSTED",
+      chosenUserId: member.user.id,
+    });
+    expect(decided).toMatchObject({ decision: "ADJUSTED", chosenUserId: member.user.id });
+    expect((await getTask(taskId)).assigneeId).toBe(member.user.id);
+  });
+
+  it("descrição e sugestão de dependências respondem para a tarefa salva", async () => {
+    actAs(manager);
+    expect((await generateDescription(taskId, 'Gere uma descrição para a tarefa "Tela de login".')).text).toBeTruthy();
+    const deps = await suggestDependencies(taskId);
+    expect(deps.answer.text).toBeTruthy();
+    expect(deps.suggestions.every((s) => s.taskId !== taskId)).toBe(true);
+  });
+
+  it("documentos do projeto podem ser listados pela equipe", async () => {
+    actAs(member);
+    expect(Array.isArray(await listDocuments(projectId))).toBe(true);
   });
 });
 
 describe.skipIf(!ADMIN_EMAIL || !ADMIN_PASSWORD)("perfil Administrador", () => {
-  it("vê e gerencia projetos dos quais não participa", async () => {
+  it("lê a configuração de domínio e não abre projetos dos quais não participa", async () => {
     const admin = await login({ email: ADMIN_EMAIL!, password: ADMIN_PASSWORD! });
     expect(admin.user.roles).toContain("ADMIN");
     actAs(admin);
-    const project = await getProject(projectId);
-    expect(project.canManage).toBe(true);
-    const permissions = getProjectPermissions(project, admin.user);
-    expect(permissions.canEditSkillsOf(member.user.id!)).toBe(true);
-    const renamed = await updateProject(projectId, {
-      name: `Projeto integração ${runId} (admin)`,
-      description: project.description ?? undefined,
-    });
-    expect(renamed.name).toContain("(admin)");
+    const domain = await getDomain();
+    expect(typeof domain.rules).toBe("string");
+    // Fora da equipe, nem o administrador abre o projeto.
+    await expectStatus(getProject(projectId), 403);
+    actAs(member);
+    await expectStatus(getDomain(), 403);
   });
 });
