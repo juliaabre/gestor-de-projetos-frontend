@@ -19,7 +19,7 @@ export function AiUnavailable({ message, children }: { message: string; children
   return (
     <div role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
       <p className="flex items-start gap-2">
-        <CircleSlash className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+        <CircleSlash className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden="true" />
         <span>{message}</span>
       </p>
       {children}

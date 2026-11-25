@@ -89,7 +89,7 @@ export function DependencySuggestions({
             type="button"
             onClick={() => setState({ status: "idle" })}
             aria-label={t.discard}
-            className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+            className="rounded-lg p-1 text-slate-500 hover:bg-white hover:text-slate-700"
           >
             <X className="size-4" />
           </button>

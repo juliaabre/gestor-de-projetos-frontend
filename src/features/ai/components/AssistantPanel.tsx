@@ -32,7 +32,7 @@ export function AssistantPanel({
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  const logRef = useRef<HTMLOListElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
 
   useEffect(() => {
@@ -121,13 +121,15 @@ export function AssistantPanel({
         </p>
       </header>
 
-      <ol
+      <div
         ref={logRef}
         role="log"
         aria-live="polite"
         aria-label={t.conversation}
-        className="flex max-h-[32rem] flex-1 flex-col gap-4 overflow-y-auto px-5 py-4"
+        tabIndex={0}
+        className="max-h-[32rem] flex-1 overflow-y-auto px-5 py-4"
       >
+      <ol className="flex flex-col gap-4">
         {history === "loading" && (
           <li className="flex items-center gap-2 text-sm text-slate-500">
             <LoaderCircle className="size-4 animate-spin" /> {t.historyLoading}
@@ -186,6 +188,7 @@ export function AssistantPanel({
           </li>
         ))}
       </ol>
+      </div>
 
       <form onSubmit={onSubmit} noValidate className="border-t border-slate-100 px-5 py-4">
         <label htmlFor={inputId} className="sr-only">
@@ -211,7 +214,7 @@ export function AssistantPanel({
             {pending ? t.sending : t.send}
           </button>
         </div>
-        <p className={`mt-1.5 text-xs ${fieldError ? "text-red-600" : "text-slate-400"}`}>
+        <p className={`mt-1.5 text-xs ${fieldError ? "text-red-600" : "text-slate-500"}`}>
           {fieldError || t.disclaimer}
         </p>
       </form>

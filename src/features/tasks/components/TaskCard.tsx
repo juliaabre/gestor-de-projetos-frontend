@@ -56,7 +56,7 @@ export function TaskCard({
       } ${dragging ? "opacity-40" : ""} ${moving ? "opacity-70" : "hover:border-slate-300 hover:shadow"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <h4 id={titleId} className="min-w-0 text-sm font-semibold leading-5 text-slate-900">
+        <h3 id={titleId} className="min-w-0 text-sm font-semibold leading-5 text-slate-900">
           <button
             type="button"
             onClick={onOpen}
@@ -64,9 +64,9 @@ export function TaskCard({
           >
             {task.title}
           </button>
-        </h4>
+        </h3>
         {moving && (
-          <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" aria-label={t.moving} />
+          <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-500" role="img" aria-label={t.moving} />
         )}
       </div>
 
@@ -110,7 +110,7 @@ export function TaskCard({
           ) : onSuggest ? null : (
             <>
               <UserRound className="size-4 text-slate-300" aria-hidden="true" />
-              <span className="text-slate-400">{t.unassigned}</span>
+              <span className="text-slate-500">{t.unassigned}</span>
             </>
           )}
         </span>

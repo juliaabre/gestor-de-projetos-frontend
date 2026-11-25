@@ -6,6 +6,8 @@ import util from "@/lib/util.json";
 import { DocumentsPanel } from "../components/DocumentsPanel";
 import { RulesPanel } from "../components/RulesPanel";
 import { VocabularyPanel } from "../components/VocabularyPanel";
+import { handleTabListKeyDown } from "@/components/tabs";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const t = util.admin;
 const TABS = [
@@ -18,18 +20,19 @@ type TabKey = (typeof TABS)[number]["key"];
 /** Base de conhecimento e regras de domínio da IA. Acesso restrito a administradores (ver AdminRoute). */
 export function KnowledgeBasePage() {
   const { user, logout } = useAuth();
+  usePageTitle(util.pages.knowledge);
   const [params, setParams] = useSearchParams();
   const tab: TabKey = TABS.find((item) => item.key === params.get("aba"))?.key ?? "documentos";
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Header user={user} logout={logout} />
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <main id="conteudo" tabIndex={-1} className="outline-none mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <p className="text-sm font-medium text-violet-600">{t.page.eyebrow}</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{t.page.title}</h1>
         <p className="mt-2 text-slate-500">{t.page.description}</p>
 
-        <div role="tablist" aria-label={t.tabs.label} className="mt-8 flex gap-1 overflow-x-auto border-b border-slate-200">
+        <div role="tablist" aria-label={t.tabs.label} onKeyDown={handleTabListKeyDown} className="mt-8 flex gap-1 overflow-x-auto border-b border-slate-200">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -37,6 +40,7 @@ export function KnowledgeBasePage() {
               role="tab"
               id={`admin-tab-${key}`}
               aria-selected={tab === key}
+              tabIndex={tab === key ? 0 : -1}
               aria-controls={`admin-panel-${key}`}
               onClick={() => setParams(key === "documentos" ? {} : { aba: key }, { replace: true })}
               className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium ${

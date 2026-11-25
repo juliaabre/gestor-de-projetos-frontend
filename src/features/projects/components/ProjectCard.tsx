@@ -33,11 +33,11 @@ export function ProjectCard({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 id={`project-${project.id}-name`} className="min-w-0 break-words text-base font-semibold text-slate-900">
+        <h2 id={`project-${project.id}-name`} className="min-w-0 break-words text-base font-semibold text-slate-900">
           <Link to={`/projects/${project.id}`} className="hover:text-blue-700 hover:underline">
             {project.name}
           </Link>
-        </h3>
+        </h2>
         <div className="flex shrink-0 gap-1.5">
           {project.archived && (
             <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">
@@ -54,7 +54,7 @@ export function ProjectCard({
 
       <p
         className={`mt-2 line-clamp-3 text-sm leading-6 ${
-          project.description ? "text-slate-600" : "italic text-slate-400"
+          project.description ? "text-slate-600" : "italic text-slate-500"
         }`}
       >
         {project.description || t.noDescription}
@@ -65,7 +65,7 @@ export function ProjectCard({
           {t.team} · {team.length}
         </p>
         {team.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-400">{t.noTeam}</p>
+          <p className="mt-2 text-sm text-slate-500">{t.noTeam}</p>
         ) : (
           <ul className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2" aria-label={t.team}>
             {team.slice(0, MAX_AVATARS).map((member) => (
@@ -74,7 +74,7 @@ export function ProjectCard({
                 <span>
                   {member.username}
                   {member.id === project.creatorId && (
-                    <span className="text-slate-400"> ({t.creator})</span>
+                    <span className="text-slate-500"> ({t.creator})</span>
                   )}
                 </span>
               </li>

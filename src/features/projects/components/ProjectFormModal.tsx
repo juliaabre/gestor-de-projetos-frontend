@@ -22,7 +22,7 @@ const API_FIELD_TO_FORM: Record<string, keyof ProjectFormData> = {
 };
 
 const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-4 font-normal text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
+  "w-full rounded-xl border border-slate-200 bg-white px-4 font-normal text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
 
 export function ProjectFormModal({
   project,
@@ -171,7 +171,7 @@ export function ProjectFormModal({
           <p className="text-xs text-slate-500">{t.teamHint}</p>
 
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
             <input
               type="search"
               value={search}
@@ -225,13 +225,13 @@ export function ProjectFormModal({
                           <span className="block truncate font-medium text-slate-800">
                             {user.username}
                             {user.id === currentUserId && (
-                              <span className="font-normal text-slate-400">
+                              <span className="font-normal text-slate-500">
                                 {" "}
                                 ({t.you})
                               </span>
                             )}
                             {locked && (
-                              <span className="font-normal text-slate-400">
+                              <span className="font-normal text-slate-500">
                                 {" "}
                                 · {t.creator}
                               </span>

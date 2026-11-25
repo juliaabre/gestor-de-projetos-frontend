@@ -155,7 +155,7 @@ export function DocumentsPanel() {
               const StatusIcon = status.icon;
               return (
                 <li key={doc.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
-                  <FileText className="hidden size-5 shrink-0 text-slate-400 sm:block" aria-hidden="true" />
+                  <FileText className="hidden size-5 shrink-0 text-slate-500 sm:block" aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-800">{doc.fileName}</p>
                     <p className="text-xs text-slate-500">

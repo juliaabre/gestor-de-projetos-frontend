@@ -29,7 +29,7 @@ export function ComplexityBadge({ complexity }: { complexity: TaskComplexity | n
   const bars = COMPLEXITY_BARS[complexity];
   return (
     <span className="flex items-center gap-1 text-xs text-slate-600">
-      <Gauge className="size-3.5 text-slate-400" aria-hidden="true" />
+      <Gauge className="size-3.5 text-slate-500" aria-hidden="true" />
       {fillTemplate(t.complexity, { value: label })}
       <span aria-hidden="true" className="ml-0.5 flex items-end gap-px">
         {[1, 2, 3].map((n) => (

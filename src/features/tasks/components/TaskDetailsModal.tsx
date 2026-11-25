@@ -12,6 +12,7 @@ import { isFinished } from "../board";
 import type { BoardColumn, Task, TaskStatus } from "../types";
 import { ACTIVITY_TABS, AttachmentsSection, CommentsSection, HistorySection } from "./TaskActivity";
 import { ComplexityBadge, DueDateBadge, PriorityBadge, TechList } from "./TaskBadges";
+import { handleTabListKeyDown } from "@/components/tabs";
 
 const t = util.tasks.details;
 type Tab = (typeof ACTIVITY_TABS)[number]["key"];
@@ -29,7 +30,7 @@ function Text({ value, empty }: { value: string | null; empty: string }) {
   return value ? (
     <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{value}</p>
   ) : (
-    <p className="text-sm italic text-slate-400">{empty}</p>
+    <p className="text-sm italic text-slate-500">{empty}</p>
   );
 }
 
@@ -135,7 +136,7 @@ export function TaskDetailsModal({
                   </option>
                 ))}
               </select>
-              {moving && <LoaderCircle className="size-4 animate-spin" aria-label={t.moving} />}
+              {moving && <LoaderCircle className="size-4 animate-spin" role="img" aria-label={t.moving} />}
             </label>
           ) : (
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
@@ -166,7 +167,7 @@ export function TaskDetailsModal({
                   {assignee.username}
                 </>
               ) : (
-                <span className="flex flex-wrap items-center gap-2 font-normal text-slate-400">
+                <span className="flex flex-wrap items-center gap-2 font-normal text-slate-500">
                   {t.unassigned}
                   {onSuggestAssignee && (
                     <button
@@ -187,7 +188,7 @@ export function TaskDetailsModal({
               {task.dueDate ? (
                 <DueDateBadge task={task} done={isFinished(task)} />
               ) : (
-                <span className="text-slate-400">{t.noDueDate}</span>
+                <span className="text-slate-500">{t.noDueDate}</span>
               )}
             </dd>
           </div>
@@ -203,7 +204,7 @@ export function TaskDetailsModal({
               {task.complexity ? (
                 <ComplexityBadge complexity={task.complexity} />
               ) : (
-                <span className="text-slate-400">{t.noComplexity}</span>
+                <span className="text-slate-500">{t.noComplexity}</span>
               )}
             </dd>
           </div>
@@ -228,13 +229,13 @@ export function TaskDetailsModal({
           {task.technologies.length ? (
             <TechList technologies={task.technologies} />
           ) : (
-            <p className="text-sm italic text-slate-400">{t.noTechnologies}</p>
+            <p className="text-sm italic text-slate-500">{t.noTechnologies}</p>
           )}
         </Section>
 
         <Section title={t.dependencies}>
           {dependsOn.length === 0 && blocks.length === 0 ? (
-            <p className="text-sm italic text-slate-400">{t.noDependencies}</p>
+            <p className="text-sm italic text-slate-500">{t.noDependencies}</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {dependsOn.length > 0 && (
@@ -260,7 +261,7 @@ export function TaskDetailsModal({
         </Section>
 
         <div>
-          <div role="tablist" aria-label={t.activity} className="flex gap-1 border-b border-slate-200">
+          <div role="tablist" aria-label={t.activity} onKeyDown={handleTabListKeyDown} className="flex gap-1 border-b border-slate-200">
             {ACTIVITY_TABS.map(({ key, icon: Icon }) => (
               <button
                 key={key}
@@ -268,6 +269,7 @@ export function TaskDetailsModal({
                 role="tab"
                 id={`task-tab-${key}`}
                 aria-selected={tab === key}
+                tabIndex={tab === key ? 0 : -1}
                 aria-controls={`task-panel-${key}`}
                 onClick={() => setTab(key)}
                 className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${

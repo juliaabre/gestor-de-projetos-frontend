@@ -76,7 +76,7 @@ function RuleEditor({
         className={`${inputClass} resize-y py-2.5 text-sm`}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={fieldError ? fieldErrorClass : "text-xs text-slate-400"}>
+        <span className={fieldError ? fieldErrorClass : "text-xs text-slate-500"}>
           {fieldError || `${value.trim().length}/${MAX_RULE}`}
         </span>
         <div className="flex gap-2">
@@ -179,7 +179,7 @@ export function RulesPanel() {
                         type="button"
                         onClick={() => setEditingId(rule.id)}
                         aria-label={t.edit}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                       >
                         <Pencil className="size-4" />
                       </button>
@@ -187,7 +187,7 @@ export function RulesPanel() {
                         type="button"
                         onClick={() => setToDelete(rule)}
                         aria-label={t.delete}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-700"
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-red-700"
                       >
                         <Trash2 className="size-4" />
                       </button>

@@ -199,7 +199,7 @@ export function RecommendationModal({
                           onChange={() => setSelected(String(item.userId))}
                           className="size-4 accent-blue-600"
                         />
-                        <span className="text-xs font-semibold text-slate-400">#{index + 1}</span>
+                        <span className="text-xs font-semibold text-slate-500">#{index + 1}</span>
                         <Avatar name={item.username} className="size-7 text-[10px]" />
                         <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">{item.username}</span>
                         <span className={`text-sm font-semibold ${index === 0 ? "text-blue-700" : "text-slate-600"}`}>

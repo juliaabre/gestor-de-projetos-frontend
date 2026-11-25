@@ -130,7 +130,7 @@ export function CommentsSection({ taskId, canComment }: { taskId: number; canCom
             className={`${inputClass} resize-y py-3 text-sm`}
           />
           <div className="flex items-center justify-between gap-3">
-            <span className={fieldError ? fieldErrorClass : "text-xs text-slate-400"}>
+            <span className={fieldError ? fieldErrorClass : "text-xs text-slate-500"}>
               {fieldError || `${draft.trim().length}/${MAX_COMMENT_LENGTH}`}
             </span>
             <button type="submit" disabled={sending} className={`${primaryButtonClass} h-9`}>
@@ -254,7 +254,7 @@ export function AttachmentsSection({
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200" aria-label={t.tabs.attachments}>
           {state.items.map((attachment) => (
             <li key={attachment.id} className="flex items-center gap-3 px-3 py-2.5">
-              <FileText className="size-5 shrink-0 text-slate-400" aria-hidden="true" />
+              <FileText className="size-5 shrink-0 text-slate-500" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-800">{attachment.fileName}</p>
                 <p className="text-xs text-slate-500">

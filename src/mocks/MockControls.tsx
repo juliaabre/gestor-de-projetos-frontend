@@ -53,7 +53,7 @@ export function MockControls() {
           </p>
           <p className="mt-0.5 text-xs text-slate-500">Backend falso em memória. Nada é enviado a um servidor.</p>
         </div>
-        <button type="button" onClick={() => setOpen(false)} aria-label="Fechar" className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+        <button type="button" onClick={() => setOpen(false)} aria-label="Fechar" className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
           <X className="size-4" />
         </button>
       </div>

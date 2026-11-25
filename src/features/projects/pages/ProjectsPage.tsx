@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FolderKanban, LoaderCircle, Plus, X } from "lucide-react";
+import { FolderKanban, Plus } from "lucide-react";
 import { Header } from "@/components/Header";
+import { FeedbackBanner, useFeedback } from "@/components/FeedbackBanner";
+import { EmptyState, ErrorState, LoadingState } from "@/components/States";
+import { handleTabListKeyDown } from "@/components/tabs";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
 import { getErrorMessage } from "@/lib/apiError";
@@ -11,10 +14,10 @@ import { ProjectFormModal } from "../components/ProjectFormModal";
 import { useProjects } from "../hooks/useProjects";
 import { archiveProject, unarchiveProject } from "../services/projectService";
 import type { Project } from "../types";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const t = util.projects;
 type Tab = "active" | "archived";
-type Feedback = { kind: "success" | "error"; message: string };
 
 export interface ProjectsPageState {
   openCreate?: boolean;
@@ -25,6 +28,7 @@ export function ProjectsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { state, reload, upsert } = useProjects();
+  usePageTitle(util.pages.projects);
 
   const [tab, setTab] = useState<Tab>("active");
   const [form, setForm] = useState<{ project?: Project } | null>(null);
@@ -32,7 +36,7 @@ export function ProjectsPage() {
     null,
   );
   const [unarchivingId, setUnarchivingId] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const { feedback, success, error: fail, clear } = useFeedback();
 
   useEffect(() => {
     if ((location.state as ProjectsPageState | null)?.openCreate) {
@@ -41,14 +45,8 @@ export function ProjectsPage() {
     }
   }, [location, navigate]);
 
-  useEffect(() => {
-    if (feedback?.kind !== "success") return;
-    const timeoutId = setTimeout(() => setFeedback(null), 5000);
-    return () => clearTimeout(timeoutId);
-  }, [feedback]);
-
-  const notify = (kind: Feedback["kind"], template: string, projectName = "") =>
-    setFeedback({ kind, message: template.replace("{name}", projectName) });
+  const notify = (kind: "success" | "error", template: string, projectName = "") =>
+    (kind === "success" ? success : fail)(template.replace("{name}", projectName));
 
   const handleUnarchive = async (project: Project) => {
     setUnarchivingId(project.id);
@@ -72,7 +70,7 @@ export function ProjectsPage() {
     <div className="min-h-screen bg-slate-50">
       <Header user={user} logout={logout} />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <main id="conteudo" tabIndex={-1} className="outline-none mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div>
             <p className="text-sm font-medium text-blue-600">
@@ -92,29 +90,12 @@ export function ProjectsPage() {
           </button>
         </div>
 
-        {feedback && (
-          <div
-            role={feedback.kind === "error" ? "alert" : "status"}
-            className={`mt-6 flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
-              feedback.kind === "error"
-                ? "border-red-200 bg-red-50 text-red-700"
-                : "border-emerald-200 bg-emerald-50 text-emerald-800"
-            }`}
-          >
-            <span>{feedback.message}</span>
-            <button
-              type="button"
-              onClick={() => setFeedback(null)}
-              aria-label={util.common.close}
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-        )}
+        <FeedbackBanner feedback={feedback} onClose={clear} className="mt-6" />
 
         <div
           role="tablist"
           aria-label={t.tabs.label}
+          onKeyDown={handleTabListKeyDown}
           className="mt-8 flex gap-1 border-b border-slate-200"
         >
           {(
@@ -127,7 +108,10 @@ export function ProjectsPage() {
               key={key}
               type="button"
               role="tab"
+              id={`projects-tab-${key}`}
               aria-selected={tab === key}
+              aria-controls="projects-panel"
+              tabIndex={tab === key ? 0 : -1}
               onClick={() => setTab(key)}
               className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium ${
                 tab === key
@@ -145,44 +129,26 @@ export function ProjectsPage() {
           ))}
         </div>
 
-        <section role="tabpanel" className="mt-6">
-          {state.status === "loading" && (
-            <p className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
-              <LoaderCircle className="animate-spin" /> {t.list.loading}
-            </p>
-          )}
+        <section
+          role="tabpanel"
+          id="projects-panel"
+          aria-labelledby={`projects-tab-${tab}`}
+          className="mt-6"
+        >
+          {state.status === "loading" && <LoadingState label={t.list.loading} />}
 
           {state.status === "error" && (
-            <div
-              role="alert"
-              className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center"
-            >
-              <p className="font-medium text-red-800">{t.list.loadError}</p>
-              <p className="mt-1 text-sm text-red-700">{state.message}</p>
-              <button
-                type="button"
-                onClick={reload}
-                className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100"
-              >
-                {util.common.retry}
-              </button>
-            </div>
+            <ErrorState title={t.list.loadError} message={state.message} onRetry={reload} />
           )}
 
           {state.status === "success" && visibleProjects.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-              <FolderKanban className="mx-auto text-slate-300" />
-              <p className="mt-3 font-medium text-slate-700">
-                {tab === "active"
-                  ? t.list.emptyActiveTitle
-                  : t.list.emptyArchivedTitle}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {tab === "active"
-                  ? t.list.emptyActiveDescription
-                  : t.list.emptyArchivedDescription}
-              </p>
-            </div>
+            <EmptyState
+              icon={<FolderKanban className="mx-auto text-slate-300" aria-hidden="true" />}
+              title={tab === "active" ? t.list.emptyActiveTitle : t.list.emptyArchivedTitle}
+              description={
+                tab === "active" ? t.list.emptyActiveDescription : t.list.emptyArchivedDescription
+              }
+            />
           )}
 
           {state.status === "success" && visibleProjects.length > 0 && (

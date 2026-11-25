@@ -2,7 +2,16 @@
   "brand": {
     "name": "Gestor de Projetos"
   },
+  "pages": {
+    "login": "Entrar",
+    "register": "Criar conta",
+    "dashboard": "Início",
+    "projects": "Projetos",
+    "board": "Quadro do projeto",
+    "knowledge": "Base de conhecimento"
+  },
   "navigation": {
+    "skipToContent": "Pular para o conteúdo",
     "logout": "Sair",
     "dashboard": "Início",
     "projects": "Projetos",
@@ -112,6 +121,7 @@
       "emptyDescription": "Crie seu primeiro projeto para começar a planejar.",
       "loading": "Carregando projetos...",
       "retry": "Tentar novamente",
+      "loadError": "Não foi possível carregar seus projetos.",
       "tasksCount": "{count} tarefa(s)",
       "membersCount": "{count} membro(s)",
       "viewAll": "Ver todos os projetos"
@@ -126,7 +136,14 @@
       "title": "Acesso não autorizado",
       "description": "Você não possui permissão para acessar este recurso.",
       "back": "Voltar para o início"
-    }
+    },
+    "crash": {
+      "title": "Algo deu errado nesta tela",
+      "description": "Ocorreu um erro inesperado. Recarregue a página ou volte para o início; seus dados salvos não foram afetados.",
+      "reload": "Recarregar página",
+      "back": "Voltar para o início"
+    },
+    "loadingPage": "Carregando página..."
   },
   "errors": {
     "network": "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
@@ -240,6 +257,7 @@
       "assistant": "Assistente IA"
     },
     "boardLabel": "Quadro Kanban",
+    "columnNav": "Ir para a coluna",
     "columnCount": "{count} tarefa(s)",
     "editColumn": "Editar coluna {name}",
     "addTask": "Adicionar tarefa",

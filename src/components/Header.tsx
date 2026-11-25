@@ -12,10 +12,16 @@ export function Header({
 }) {
   return (
     <header className="border-b border-slate-200 bg-white">
+      <a
+        href="#conteudo"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-lg focus:bg-blue-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+      >
+        {util.navigation.skipToContent}
+      </a>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 font-semibold text-slate-900">
           <span className="grid size-8 place-items-center rounded-lg bg-blue-600 text-white">
-            <PanelsTopLeft />
+            <PanelsTopLeft aria-hidden="true" />
           </span>{" "}
           <span className="hidden sm:inline">{util.brand.name}</span>
           <nav aria-label={util.navigation.main} className="ml-2 flex min-w-0 gap-1 overflow-x-auto sm:ml-6">
@@ -44,11 +50,12 @@ export function Header({
             <p className="text-xs text-slate-500">{user?.email}</p>
           </div>
           <button
+            type="button"
             onClick={logout}
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             aria-label={util.navigation.logout}
           >
-            <LogOut />
+            <LogOut aria-hidden="true" />
           </button>
         </div>
       </div>

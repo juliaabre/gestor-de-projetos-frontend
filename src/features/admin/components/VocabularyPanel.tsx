@@ -160,7 +160,7 @@ export function VocabularyPanel() {
       {items.length > 0 && (
         <>
           <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
             <input
               type="search"
               value={search}
@@ -183,7 +183,7 @@ export function VocabularyPanel() {
                         type="button"
                         onClick={() => setForm({ term: item })}
                         aria-label={fillTemplate(t.edit, { term: item.term })}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                       >
                         <Pencil className="size-4" />
                       </button>
@@ -191,7 +191,7 @@ export function VocabularyPanel() {
                         type="button"
                         onClick={() => setToDelete(item)}
                         aria-label={fillTemplate(t.delete, { term: item.term })}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-700"
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-red-700"
                       >
                         <Trash2 className="size-4" />
                       </button>

@@ -143,7 +143,7 @@ export function TeamPanel({
       )}
 
       <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
         <input
           type="search"
           value={search}
@@ -170,12 +170,12 @@ export function TeamPanel({
                   <div className="flex items-center gap-3">
                     <Avatar name={member.username} className="size-10 text-sm" />
                     <div className="min-w-0 flex-1">
-                      <h3 id={`member-${member.id}`} className="truncate font-semibold text-slate-900">
+                      <h2 id={`member-${member.id}`} className="truncate font-semibold text-slate-900">
                         {member.username}
                         {member.id === currentUserId && (
-                          <span className="font-normal text-slate-400"> ({t.you})</span>
+                          <span className="font-normal text-slate-500"> ({t.you})</span>
                         )}
-                      </h3>
+                      </h2>
                       <p className="truncate text-xs text-slate-500">{member.email}</p>
                     </div>
                     {member.id === project.creatorId && (
@@ -194,7 +194,7 @@ export function TeamPanel({
                       </div>
                     )}
                     {entry.status === "success" && entry.skills.length === 0 && (
-                      <p className="mt-2 text-sm italic text-slate-400">{t.noSkills}</p>
+                      <p className="mt-2 text-sm italic text-slate-500">{t.noSkills}</p>
                     )}
                     {entry.status === "success" && entry.skills.length > 0 && (
                       <ul className="mt-2 flex flex-col gap-2" aria-label={fillTemplate(t.skillsOf, { name: member.username })}>
@@ -219,7 +219,7 @@ export function TeamPanel({
                                     type="button"
                                     onClick={() => setForm({ member, skill })}
                                     aria-label={fillTemplate(t.edit, { name: labelOf(ACTIVITY_TYPES, skill.activityType) })}
-                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700"
+                                    className="rounded-lg p-1.5 text-slate-500 hover:bg-white hover:text-slate-700"
                                   >
                                     <Pencil className="size-4" />
                                   </button>
@@ -227,7 +227,7 @@ export function TeamPanel({
                                     type="button"
                                     onClick={() => setToDelete({ member, skill })}
                                     aria-label={fillTemplate(t.remove, { name: labelOf(ACTIVITY_TYPES, skill.activityType) })}
-                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-red-700"
+                                    className="rounded-lg p-1.5 text-slate-500 hover:bg-white hover:text-red-700"
                                   >
                                     <Trash2 className="size-4" />
                                   </button>

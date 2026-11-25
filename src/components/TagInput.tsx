@@ -98,7 +98,7 @@ export function TagInput({
           placeholder={value.length === 0 ? placeholder : ""}
           aria-describedby={hintId}
           aria-invalid={Boolean(message)}
-          className="h-8 min-w-32 flex-1 bg-transparent px-1.5 font-normal text-slate-900 outline-none placeholder:text-slate-400"
+          className="h-8 min-w-32 flex-1 bg-transparent px-1.5 font-normal text-slate-900 outline-none placeholder:text-slate-500"
         />
       </div>
       <span id={hintId} className={message ? "text-xs font-normal text-red-600" : "text-xs font-normal text-slate-500"}>

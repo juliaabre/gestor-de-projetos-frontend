@@ -54,7 +54,7 @@ export function AuthLayout({
             <p className="mt-2 text-slate-500">{description}</p>
           </div>
           {children}
-          <p className="mt-8 text-center text-xs leading-5 text-slate-400">
+          <p className="mt-8 text-center text-xs leading-5 text-slate-500">
             {util.auth.login.footer}
           </p>
         </div>
@@ -64,7 +64,7 @@ export function AuthLayout({
 }
 
 export const inputClassName =
-  "h-12 w-full rounded-xl border border-slate-200 bg-white px-4 font-normal outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
+  "h-12 w-full rounded-xl border border-slate-200 bg-white px-4 font-normal outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
 
 export const submitClassName =
   "mt-2 flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70";

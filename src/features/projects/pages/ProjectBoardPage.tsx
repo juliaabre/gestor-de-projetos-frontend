@@ -25,6 +25,8 @@ import { getErrorMessage } from "@/lib/apiError";
 import { fillTemplate } from "@/lib/format";
 import util from "@/lib/util.json";
 import { getProjectPermissions } from "../permissions";
+import { handleTabListKeyDown } from "@/components/tabs";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const t = util.board;
 const UNASSIGNED = "none";
@@ -56,6 +58,7 @@ export function ProjectBoardPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   const data = state.status === "success" ? state : null;
+  usePageTitle(data?.project.name ?? util.pages.board);
   const columns = useMemo(
     () => (data ? resolveColumns(data.columns, data.tasks) : []),
     [data],
@@ -172,7 +175,7 @@ export function ProjectBoardPage() {
         )}
       </div>
 
-      <div role="tablist" aria-label={t.tabs.label} className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div role="tablist" aria-label={t.tabs.label} onKeyDown={handleTabListKeyDown} className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
         {(
           [
             ["board", t.tabs.board, KanbanSquare, tasks.length],
@@ -186,6 +189,7 @@ export function ProjectBoardPage() {
             role="tab"
             id={`project-tab-${key}`}
             aria-selected={tab === key}
+            tabIndex={tab === key ? 0 : -1}
             aria-controls={`project-panel-${key}`}
             onClick={() => setTab(key)}
             className={`-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium ${
@@ -225,7 +229,7 @@ export function ProjectBoardPage() {
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative sm:max-w-sm sm:flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                 <input
                   type="search"
                   value={search}
@@ -391,7 +395,7 @@ function Shell({
   return (
     <div className="min-h-screen bg-slate-50">
       <Header user={user} logout={logout} />
-      <main className="mx-auto max-w-[96rem] px-4 py-8 sm:px-6">
+      <main id="conteudo" tabIndex={-1} className="outline-none mx-auto max-w-[96rem] px-4 py-8 sm:px-6">
         <Link
           to="/projects"
           className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800"

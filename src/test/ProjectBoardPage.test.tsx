@@ -101,7 +101,7 @@ function renderPage(path = "/projects/10") {
 }
 
 const column = (name: string) => screen.getByRole("region", { name: "Quadro Kanban" }).querySelector(
-  `section[aria-labelledby="column-${name}"]`,
+  `section[data-status="${name}"]`,
 ) as HTMLElement;
 
 beforeEach(() => {

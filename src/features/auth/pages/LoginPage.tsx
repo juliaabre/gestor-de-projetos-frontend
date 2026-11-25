@@ -12,10 +12,12 @@ import {
   submitClassName,
 } from "../components/AuthLayout";
 import util from "@/lib/util.json";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading } = useAuth();
+  usePageTitle(util.pages.login);
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
   const {
@@ -95,7 +97,7 @@ export function LoginPage() {
                   : util.auth.login.fields.password.show
               }
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 rounded-md p-1 text-slate-400 hover:text-slate-700"
+              className="absolute right-3 top-3 rounded-md p-1 text-slate-500 hover:text-slate-700"
             >
               {showPassword ? <EyeOff /> : <Eye />}
             </button>

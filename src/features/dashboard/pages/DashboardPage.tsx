@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
-import { FolderKanban, LoaderCircle, PanelsTopLeft, Plus, Sparkles } from "lucide-react";
+import { FolderKanban, PanelsTopLeft, Plus, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
 import { useProjects } from "@/features/projects/hooks/useProjects";
 import type { ProjectsPageState } from "@/features/projects/pages/ProjectsPage";
 import util from "@/lib/util.json";
 import { Header } from "@/components/Header";
+import { EmptyState, ErrorState, LoadingState } from "@/components/States";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const t = util.dashboard.projects;
 
@@ -15,27 +17,18 @@ function ProjectsPreview() {
 
   if (state.status === "error")
     return (
-      <div role="alert" className="mt-10 rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
-        <p>{state.message}</p>
-        <button onClick={reload} className="mt-2 font-semibold underline">
-          {t.retry}
-        </button>
+      <div className="mt-8">
+        <ErrorState title={t.loadError} message={state.message} onRetry={reload} compact />
       </div>
     );
 
-  if (state.status === "loading")
-    return (
-      <p className="mt-10 flex items-center justify-center gap-2 text-sm text-slate-500">
-        <LoaderCircle className="animate-spin" /> {t.loading}
-      </p>
-    );
+  if (state.status === "loading") return <LoadingState label={t.loading} />;
 
   const activeProjects = state.projects.filter((project) => !project.archived);
   if (activeProjects.length === 0)
     return (
-      <div className="mt-10 rounded-xl border border-dashed border-slate-200 p-10 text-center">
-        <p className="font-medium text-slate-700">{t.emptyTitle}</p>
-        <p className="mt-1 text-sm text-slate-500">{t.emptyDescription}</p>
+      <div className="mt-8">
+        <EmptyState title={t.emptyTitle} description={t.emptyDescription} />
       </div>
     );
 
@@ -45,7 +38,7 @@ function ProjectsPreview() {
         {activeProjects.slice(0, PREVIEW).map((project) => (
           <li key={project.id} className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-center gap-2 font-medium text-slate-900">
-              <FolderKanban className="size-4 shrink-0 text-blue-600" />
+              <FolderKanban className="size-4 shrink-0 text-blue-600" aria-hidden="true" />
               <Link to={`/projects/${project.id}`} className="truncate hover:text-blue-700 hover:underline">
                 {project.name}
               </Link>
@@ -71,12 +64,13 @@ function ProjectsPreview() {
 export function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  usePageTitle(util.pages.dashboard);
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Header user={user} logout={logout} />
 
-      <main className="mx-auto max-w-7xl px-6 py-12">
+      <main id="conteudo" tabIndex={-1} className="outline-none mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div>
             <p className="text-sm font-medium text-blue-600">
@@ -94,14 +88,14 @@ export function DashboardPage() {
             type="button"
             onClick={() => navigate("/projects", { state: { openCreate: true } satisfies ProjectsPageState })}
             className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
-            <Plus /> {util.dashboard.actions.newProject}
+            <Plus aria-hidden="true" /> {util.dashboard.actions.newProject}
           </button>
         </div>
         <div className="mt-10 grid gap-5 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 md:col-span-2">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
-                <PanelsTopLeft />
+                <PanelsTopLeft aria-hidden="true" />
               </div>
               <div>
                 <h2 className="font-semibold text-slate-900">
@@ -115,7 +109,7 @@ export function DashboardPage() {
             <ProjectsPreview />
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-900 p-6 text-white">
-            <Sparkles className="text-blue-300" />
+            <Sparkles className="text-blue-300" aria-hidden="true" />
             <h2 className="mt-8 text-xl font-semibold">
               {util.dashboard.evolution.title}
             </h2>

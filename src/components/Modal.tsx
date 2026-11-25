@@ -2,6 +2,27 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import util from "@/lib/util.json";
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Mantém o Tab circulando dentro do diálogo enquanto ele estiver aberto. */
+function trapFocus(e: KeyboardEvent, panel: HTMLElement) {
+  const dialogs = document.querySelectorAll('[role="dialog"]');
+  if (dialogs[dialogs.length - 1] !== panel) return;
+  const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+  if (items.length === 0) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  const active = document.activeElement;
+  if (e.shiftKey && (active === first || active === panel)) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && (active === last || !panel.contains(active))) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 const SIZES = {
   sm: "sm:max-w-md",
   md: "sm:max-w-xl",
@@ -34,7 +55,13 @@ export function Modal({
     );
     (first ?? panelRef.current)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCloseRef.current();
+      if (e.key === "Escape") {
+        // Só o diálogo mais recente fecha (ex.: confirmação aberta sobre outro modal).
+        const dialogs = document.querySelectorAll('[role="dialog"]');
+        if (dialogs[dialogs.length - 1] === panelRef.current) onCloseRef.current();
+        return;
+      }
+      if (e.key === "Tab" && panelRef.current) trapFocus(e, panelRef.current);
     };
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
@@ -78,7 +105,7 @@ export function Modal({
             data-modal-close
             onClick={onClose}
             aria-label={util.common.close}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="size-5" />
           </button>
