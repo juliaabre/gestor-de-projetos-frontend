@@ -1,4 +1,4 @@
-import { Link2, LoaderCircle, UserRound } from "lucide-react";
+import { Link2, LoaderCircle, Sparkles, UserRound } from "lucide-react";
 import util from "@/lib/util.json";
 import { fillTemplate } from "@/lib/format";
 import { Avatar } from "@/features/projects/components/Avatar";
@@ -21,6 +21,7 @@ export function TaskCard({
   onMove,
   onDragStart,
   onDragEnd,
+  onSuggest,
 }: {
   task: Task;
   assignee: TeamMember | null;
@@ -34,6 +35,8 @@ export function TaskCard({
   onMove: (status: TaskStatus) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
+  /** Presente quando o usuário pode pedir recomendação de responsável à IA. */
+  onSuggest?: () => void;
 }) {
   const titleId = `task-${task.id}-title`;
 
@@ -78,6 +81,22 @@ export function TaskCard({
         </div>
       )}
 
+      {!assignee && onSuggest && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-violet-50 px-2.5 py-1.5">
+          <span className="flex items-center gap-1 text-xs font-medium text-violet-800">
+            <Sparkles className="size-3.5" aria-hidden="true" /> {t.unassigned}
+          </span>
+          <button
+            type="button"
+            onClick={onSuggest}
+            aria-label={fillTemplate(t.suggestLabel, { title: task.title })}
+            className="rounded-md border border-violet-200 bg-white px-2 py-0.5 text-xs font-semibold text-violet-800 hover:bg-violet-100"
+          >
+            {t.suggest}
+          </button>
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600">
           {assignee ? (
@@ -88,7 +107,7 @@ export function TaskCard({
                 {assignee.username}
               </span>
             </>
-          ) : (
+          ) : onSuggest ? null : (
             <>
               <UserRound className="size-4 text-slate-300" aria-hidden="true" />
               <span className="text-slate-400">{t.unassigned}</span>

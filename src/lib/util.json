@@ -6,7 +6,8 @@
     "logout": "Sair",
     "dashboard": "Início",
     "projects": "Projetos",
-    "main": "Navegação principal"
+    "main": "Navegação principal",
+    "knowledge": "Base de conhecimento"
   },
   "auth": {
     "login": {
@@ -123,7 +124,8 @@
   "access": {
     "unauthorized": {
       "title": "Acesso não autorizado",
-      "description": "Você não possui permissão para acessar este recurso."
+      "description": "Você não possui permissão para acessar este recurso.",
+      "back": "Voltar para o início"
     }
   },
   "errors": {
@@ -234,7 +236,8 @@
     "tabs": {
       "label": "Seções do projeto",
       "board": "Quadro",
-      "team": "Equipe"
+      "team": "Equipe",
+      "assistant": "Assistente IA"
     },
     "boardLabel": "Quadro Kanban",
     "columnCount": "{count} tarefa(s)",
@@ -260,7 +263,9 @@
       "blocked": "Aguardando {count} dependência(s)",
       "moveTo": "Mover para",
       "moveLabel": "Mover \"{title}\" para",
-      "moving": "Movendo tarefa"
+      "moving": "Movendo tarefa",
+      "suggest": "Sugerir",
+      "suggestLabel": "Sugerir responsável para \"{title}\""
     },
     "columnForm": {
       "createTitle": "Nova coluna",
@@ -292,7 +297,11 @@
       "moveError": "Não foi possível mover \"{title}\": {reason} A tarefa voltou para a coluna original.",
       "moveErrorFallback": "erro inesperado.",
       "columnCreated": "Coluna \"{name}\" criada.",
-      "columnUpdated": "Coluna \"{name}\" atualizada."
+      "columnUpdated": "Coluna \"{name}\" atualizada.",
+      "taskNotFound": "A tarefa citada não pertence a este projeto ou foi excluída.",
+      "dependenciesRegistered": "Dependências de \"{title}\" registradas.",
+      "assigned": "\"{title}\" atribuída a {name}.",
+      "recommendationRejected": "Recomendação para \"{title}\" recusada. Nenhum responsável foi atribuído."
     }
   },
   "tasks": {
@@ -409,7 +418,8 @@
         "changed": "alterou {field} de \"{from}\" para \"{to}\"",
         "set": "definiu {field} como \"{to}\"",
         "updated": "atualizou {field}"
-      }
+      },
+      "suggestAssignee": "Sugerir responsável"
     }
   },
   "skills": {
@@ -458,6 +468,249 @@
       "created": "Competência adicionada.",
       "updated": "Competência atualizada.",
       "deleted": "Competência removida."
+    }
+  },
+  "ai": {
+    "shared": {
+      "badge": "IA",
+      "sources": "Fontes citadas",
+      "noSources": "Nenhuma fonte citada.",
+      "taskSource": "Tarefa #{id} · {title}",
+      "score": "Adequação de {score}%",
+      "bottleneck": {
+        "stalled": "Tarefa parada",
+        "overloaded": "Integrante sobrecarregado",
+        "blocking": "Dependência bloqueante",
+        "other": "Possível gargalo",
+        "high": "alta severidade",
+        "involved": "Tarefas e pessoas envolvidas"
+      }
+    },
+    "recommendation": {
+      "title": "Recomendação de responsável",
+      "loading": "Analisando competências, histórico e carga da equipe...",
+      "loadError": "Não foi possível obter a recomendação.",
+      "unavailable": "A recomendação por IA está indisponível no momento. Você pode atribuir o responsável manualmente.",
+      "empty": "A IA não encontrou integrantes recomendados para esta tarefa. Você pode atribuir manualmente.",
+      "ranking": "Recomendados para esta tarefa",
+      "fallback": "IA indisponível: este ranking foi calculado por pontuação simples (competências e carga atual).",
+      "load": "Carga atual: {count} tarefa(s)",
+      "skills": "Competências",
+      "viewSources": "Ver fontes ({count})",
+      "adjust": "Ajustar: escolher outro integrante",
+      "manualLabel": "Atribuir a outro integrante",
+      "selectMember": "Selecione um integrante...",
+      "assign": "Atribuir",
+      "assignTo": "Atribuir a {name}",
+      "reject": "Recusar",
+      "rejectReason": "Motivo da recusa (opcional)",
+      "rejectPlaceholder": "Ajuda a melhorar as próximas recomendações",
+      "confirmReject": "Confirmar recusa",
+      "assignError": "Não foi possível atribuir o responsável.",
+      "rejectError": "Não foi possível registrar a recusa.",
+      "decisionNotRecorded": "O responsável foi atribuído, mas a decisão sobre a recomendação não foi registrada."
+    },
+    "assistant": {
+      "title": "Assistente do projeto",
+      "conversation": "Conversa com o assistente",
+      "historyLoading": "Carregando conversa...",
+      "historySaved": "A conversa fica salva neste projeto.",
+      "historyUnsupported": "O histórico não é salvo: a conversa vale só para esta sessão.",
+      "historyError": "Não foi possível carregar conversas anteriores.",
+      "emptyTitle": "Pergunte sobre o projeto",
+      "emptyDescription": "Ex.: \"Quem está sobrecarregado nesta sprint?\" ou \"Quais tarefas estão atrasadas?\"",
+      "label": "Pergunta para o assistente",
+      "placeholder": "Pergunte sobre projetos, tarefas ou documentos",
+      "send": "Enviar",
+      "sending": "Aguardando...",
+      "thinking": "Consultando os dados do projeto...",
+      "you": "Você",
+      "assistant": "Assistente",
+      "required": "Escreva uma pergunta.",
+      "tooLong": "A pergunta deve ter no máximo 1000 caracteres.",
+      "unavailable": "O assistente está indisponível no momento. O restante do sistema continua funcionando normalmente.",
+      "error": "Não foi possível obter a resposta.",
+      "disclaimer": "Respostas geradas por IA a partir dos dados aos quais você tem acesso. Confira as fontes."
+    },
+    "summary": {
+      "title": "Resumo do andamento",
+      "scope": "Período do resumo",
+      "scopeProject": "Projeto inteiro",
+      "scopeSprint": "Sprint atual",
+      "refresh": "Atualizar",
+      "loading": "Gerando resumo...",
+      "error": "Não foi possível gerar o resumo.",
+      "unavailable": "O resumo por IA está indisponível no momento.",
+      "generatedAt": "Gerado em {date}",
+      "bottlenecksTitle": "Alertas de gargalo",
+      "bottlenecksLoading": "Analisando distribuição das tarefas...",
+      "bottlenecksError": "Falha ao consultar gargalos.",
+      "bottlenecksUnavailable": "A análise de gargalos está indisponível no momento. Não é possível afirmar que não há gargalos.",
+      "noBottlenecks": "Nenhum gargalo identificado: sem tarefas paradas ou integrantes sobrecarregados."
+    },
+    "description": {
+      "instruction": "Instrução para a IA (opcional)",
+      "instructionPlaceholder": "Instrução opcional, ex.: \"inclua critérios de aceite\"",
+      "generate": "Gerar descrição",
+      "refine": "Refinar descrição",
+      "generating": "Gerando...",
+      "titleRequired": "Informe o título para gerar uma descrição.",
+      "unavailable": "A geração por IA está indisponível. Você pode escrever a descrição manualmente.",
+      "error": "Não foi possível gerar a descrição.",
+      "reviewTitle": "Sugestão de descrição",
+      "suggestion": "Sugestão",
+      "reviewHint": "Revise antes de aplicar. Nada é salvo até você salvar a tarefa.",
+      "editLabel": "Editar sugestão",
+      "accept": "Aceitar",
+      "edit": "Editar",
+      "discard": "Descartar"
+    },
+    "dependencies": {
+      "suggest": "Sugerir dependências com IA",
+      "badge": "Sugestões",
+      "hint": "Não confirmadas. Selecione as que deseja registrar.",
+      "loading": "Analisando tarefas do projeto...",
+      "empty": "A IA não encontrou novas dependências para esta tarefa.",
+      "unavailable": "A sugestão de dependências está indisponível no momento.",
+      "error": "Não foi possível sugerir dependências.",
+      "listLabel": "Dependências sugeridas",
+      "confidence": "confiança {value}%",
+      "register": "Registrar selecionadas ({count})",
+      "registerError": "Não foi possível registrar as dependências.",
+      "discard": "Descartar sugestões"
+    }
+  },
+  "admin": {
+    "page": {
+      "eyebrow": "Administração da IA",
+      "title": "Base de conhecimento",
+      "description": "Documentos, regras e vocabulário que orientam as respostas e recomendações da IA."
+    },
+    "tabs": {
+      "label": "Seções da base de conhecimento",
+      "documents": "Documentos",
+      "rules": "Regras de domínio",
+      "vocabulary": "Vocabulário"
+    },
+    "documents": {
+      "uploadTitle": "Enviar documento",
+      "uploadDescription": "O documento é processado, dividido em trechos e indexado para consulta pela IA.",
+      "file": "Arquivo",
+      "hint": "PDF, Markdown ou texto, até {max}.",
+      "fileRequired": "Selecione um arquivo.",
+      "invalidType": "Formato não suportado. Envie PDF (.pdf), Markdown (.md) ou texto (.txt).",
+      "emptyFile": "O arquivo está vazio.",
+      "tooLarge": "O arquivo excede o limite de {max}.",
+      "scope": "Acesso",
+      "scopeHint": "A IA só usa o documento para quem tem acesso ao projeto escolhido.",
+      "global": "Global (todos os projetos)",
+      "projectFallback": "Projeto #{id}",
+      "upload": "Enviar documento",
+      "uploading": "Enviando...",
+      "uploaded": "\"{name}\" enviado. O processamento pode levar alguns minutos.",
+      "uploadError": "Não foi possível enviar o documento.",
+      "listTitle": "Documentos indexados",
+      "polling": "Atualizando status...",
+      "loading": "Carregando documentos...",
+      "loadError": "Não foi possível carregar os documentos.",
+      "emptyTitle": "Nenhum documento enviado",
+      "emptyDescription": "Envie guias, especificações e manuais para a IA usar como fonte.",
+      "unavailableTitle": "Base de conhecimento indisponível",
+      "unavailable": "O servidor ainda não oferece a ingestão de documentos.",
+      "chunks": "{count} trecho(s)",
+      "status": {
+        "pending": "Na fila",
+        "processing": "Processando",
+        "indexed": "Indexado",
+        "failed": "Falhou"
+      },
+      "delete": "Remover {name}",
+      "deleted": "\"{name}\" removido da base de conhecimento.",
+      "deleteDialog": {
+        "title": "Remover documento?",
+        "description": "\"{name}\" deixará de ser usado pela IA como fonte.",
+        "confirm": "Remover",
+        "confirming": "Removendo...",
+        "error": "Não foi possível remover o documento."
+      }
+    },
+    "rules": {
+      "newTitle": "Nova regra",
+      "description": "Regras de domínio orientam a IA (ex.: políticas de alocação, termos da área, restrições). Regras inativas são ignoradas.",
+      "label": "Texto da regra",
+      "placeholder": "Ex.: Tarefas de segurança só devem ser atribuídas a integrantes de nível avançado.",
+      "create": "Adicionar regra",
+      "save": "Salvar",
+      "required": "Escreva a regra.",
+      "tooShort": "A regra deve ter ao menos {min} caracteres.",
+      "tooLong": "A regra deve ter no máximo {max} caracteres.",
+      "saveError": "Não foi possível salvar a regra.",
+      "listTitle": "Regras cadastradas",
+      "loading": "Carregando regras...",
+      "loadError": "Não foi possível carregar as regras.",
+      "emptyTitle": "Nenhuma regra cadastrada",
+      "emptyDescription": "Sem regras, a IA usa apenas os dados do projeto e a base de conhecimento.",
+      "unavailableTitle": "Regras indisponíveis",
+      "unavailable": "O servidor ainda não oferece a configuração de regras de domínio.",
+      "active": "Ativa",
+      "inactive": "Inativa",
+      "activated": "Regra ativada.",
+      "deactivated": "Regra desativada.",
+      "edit": "Editar regra",
+      "delete": "Excluir regra",
+      "created": "Regra adicionada.",
+      "updated": "Regra atualizada.",
+      "deleted": "Regra excluída.",
+      "deleteDialog": {
+        "title": "Excluir regra?",
+        "description": "A regra deixará de orientar a IA. Para suspendê-la temporariamente, desative-a.",
+        "confirm": "Excluir",
+        "confirming": "Excluindo...",
+        "error": "Não foi possível excluir a regra."
+      }
+    },
+    "vocabulary": {
+      "description": "Termos e sinônimos do domínio, para a IA interpretar perguntas e documentos de outras áreas além de software.",
+      "newTerm": "Novo termo",
+      "createTitle": "Novo termo",
+      "editTitle": "Editar termo",
+      "term": "Termo",
+      "termPlaceholder": "Ex.: Sprint",
+      "definition": "Definição",
+      "definitionPlaceholder": "O que o termo significa neste domínio",
+      "synonyms": "Sinônimos",
+      "synonymsPlaceholder": "Ex.: iteração, ciclo",
+      "create": "Adicionar termo",
+      "save": "Salvar alterações",
+      "saving": "Salvando...",
+      "saveError": "Não foi possível salvar o termo.",
+      "termRequired": "Informe o termo.",
+      "termTooLong": "O termo deve ter no máximo 100 caracteres.",
+      "termDuplicate": "Este termo já está cadastrado.",
+      "definitionRequired": "Informe a definição.",
+      "definitionTooLong": "A definição deve ter no máximo 1000 caracteres.",
+      "synonymsTooMany": "Adicione no máximo 20 sinônimos.",
+      "search": "Buscar termo, definição ou sinônimo",
+      "noResults": "Nenhum termo corresponde à busca.",
+      "listTitle": "Vocabulário do domínio",
+      "loading": "Carregando vocabulário...",
+      "loadError": "Não foi possível carregar o vocabulário.",
+      "emptyTitle": "Nenhum termo cadastrado",
+      "emptyDescription": "Cadastre os termos próprios da área do projeto.",
+      "unavailableTitle": "Vocabulário indisponível",
+      "unavailable": "O servidor ainda não oferece a configuração de vocabulário.",
+      "edit": "Editar {term}",
+      "delete": "Excluir {term}",
+      "created": "Termo \"{term}\" adicionado.",
+      "updated": "Termo \"{term}\" atualizado.",
+      "deleted": "Termo \"{term}\" excluído.",
+      "deleteDialog": {
+        "title": "Excluir termo?",
+        "description": "\"{term}\" e seus sinônimos deixarão de ser considerados pela IA.",
+        "confirm": "Excluir",
+        "confirming": "Excluindo...",
+        "error": "Não foi possível excluir o termo."
+      }
     }
   }
 }

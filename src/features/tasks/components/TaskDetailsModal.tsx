@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { ArrowRight, CheckCircle2, Circle, LoaderCircle, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, LoaderCircle, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { DependencySuggestions } from "@/features/ai/components/DependencySuggestions";
 import { Modal } from "@/components/Modal";
 import { dangerSmallButtonClass, smallButtonClass } from "@/components/ui";
 import { fillTemplate, formatDateTime } from "@/lib/format";
@@ -87,6 +88,8 @@ export function TaskDetailsModal({
   onDelete,
   onMove,
   onOpenTask,
+  onSuggestAssignee,
+  onRegisterDependencies,
 }: {
   task: Task;
   tasks: Task[];
@@ -100,6 +103,8 @@ export function TaskDetailsModal({
   onDelete: () => void;
   onMove: (status: TaskStatus) => void;
   onOpenTask: (task: Task) => void;
+  onSuggestAssignee?: () => void;
+  onRegisterDependencies: (dependencyIds: number[]) => Promise<void>;
 }) {
   const [tab, setTab] = useState<Tab>("comments");
   const assignee = team.find((member) => member.id === task.assigneeId) ?? null;
@@ -161,7 +166,18 @@ export function TaskDetailsModal({
                   {assignee.username}
                 </>
               ) : (
-                <span className="font-normal text-slate-400">{t.unassigned}</span>
+                <span className="flex flex-wrap items-center gap-2 font-normal text-slate-400">
+                  {t.unassigned}
+                  {onSuggestAssignee && (
+                    <button
+                      type="button"
+                      onClick={onSuggestAssignee}
+                      className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-white px-2 py-0.5 text-xs font-semibold text-violet-800 hover:bg-violet-50"
+                    >
+                      <Sparkles className="size-3" /> {t.suggestAssignee}
+                    </button>
+                  )}
+                </span>
               )}
             </dd>
           </div>
@@ -230,13 +246,16 @@ export function TaskDetailsModal({
             </div>
           )}
           {permissions.canEditTasks && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="flex w-fit items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              {t.manageDependencies} <ArrowRight className="size-4" />
-            </button>
+            <>
+              <DependencySuggestions task={task} tasks={tasks} onRegister={onRegisterDependencies} />
+              <button
+                type="button"
+                onClick={onEdit}
+                className="flex w-fit items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                {t.manageDependencies} <ArrowRight className="size-4" />
+              </button>
+            </>
           )}
         </Section>
 

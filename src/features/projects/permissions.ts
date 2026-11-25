@@ -13,6 +13,8 @@ export function getProjectPermissions(project: Project, user: User | null) {
     canEditTasks: writable && isMember,
     canDeleteTasks: writable && project.canManage,
     canManageColumns: writable && project.canManage,
+    /** Decidir sobre recomendações de responsável (RF10) é papel do gerente. */
+    canDecideAssignment: writable && project.canManage,
     canCollaborate: writable && isMember,
     canEditSkillsOf: (userId: number) => user?.id === userId || isAdmin,
   };

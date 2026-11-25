@@ -40,5 +40,21 @@ export function useRemoteList<T>(loader: () => Promise<T[]>, errorFallback: stri
     });
   }, []);
 
-  return { state, reload, add };
+  /** Aplica uma alteração local à lista carregada (inserção, edição ou remoção). */
+  const update = useCallback((fn: (items: T[]) => T[]) => {
+    setState((prev) => (prev.status === "success" ? { status: "success", items: fn(prev.items) } : prev));
+  }, []);
+
+  /** Recarrega sem voltar ao estado de carregamento; falhas mantêm os dados atuais. */
+  const refresh = useCallback(async () => {
+    try {
+      const items = await loader();
+      setState({ status: "success", items });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [loader]);
+
+  return { state, reload, add, update, refresh };
 }

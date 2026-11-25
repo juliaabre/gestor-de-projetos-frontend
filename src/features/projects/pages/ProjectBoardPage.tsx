@@ -1,20 +1,25 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Columns3, KanbanSquare, Plus, Search, Users } from "lucide-react";
+import { ArrowLeft, Bot, Columns3, KanbanSquare, Plus, Search, Users } from "lucide-react";
 import { Header } from "@/components/Header";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FeedbackBanner, useFeedback } from "@/components/FeedbackBanner";
 import { ErrorState, LoadingState } from "@/components/States";
 import { inputClass, primaryButtonClass, secondaryButtonClass } from "@/components/ui";
 import { useAuth } from "@/features/auth/hooks/AuthContext";
+import type { User } from "@/features/auth/types";
+import { AssistantPanel } from "@/features/ai/components/AssistantPanel";
+import { RecommendationModal } from "@/features/ai/components/RecommendationModal";
+import { SummaryPanel } from "@/features/ai/components/SummaryPanel";
 import { TeamPanel } from "@/features/skills/components/TeamPanel";
+import { taskToInput } from "@/features/tasks/mappers";
 import { resolveColumns } from "@/features/tasks/board";
 import { ColumnFormModal } from "@/features/tasks/components/ColumnFormModal";
 import { KanbanBoard } from "@/features/tasks/components/KanbanBoard";
 import { TaskDetailsModal } from "@/features/tasks/components/TaskDetailsModal";
 import { TaskFormModal } from "@/features/tasks/components/TaskFormModal";
 import { useProjectBoard } from "@/features/tasks/hooks/useProjectBoard";
-import { deleteTask } from "@/features/tasks/services/taskService";
+import { deleteTask, updateTask } from "@/features/tasks/services/taskService";
 import type { BoardColumn, Task, TaskStatus } from "@/features/tasks/types";
 import { getErrorMessage } from "@/lib/apiError";
 import { fillTemplate } from "@/lib/format";
@@ -24,12 +29,14 @@ import { getProjectPermissions } from "../permissions";
 const t = util.board;
 const UNASSIGNED = "none";
 
-type Tab = "board" | "team";
+type Tab = "board" | "team" | "assistant";
+const TAB_PARAM: Record<Tab, string | null> = { board: null, team: "equipe", assistant: "assistente" };
 type View =
   | { kind: "details"; taskId: number }
   | { kind: "form"; task?: Task; status?: TaskStatus; returnTo?: number }
   | { kind: "delete"; task: Task }
   | { kind: "column"; column?: BoardColumn }
+  | { kind: "recommend"; task: Task; returnTo?: number }
   | null;
 
 export function ProjectBoardPage() {
@@ -37,7 +44,9 @@ export function ProjectBoardPage() {
   const projectId = Number(rawId);
   const { user, logout } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: Tab = searchParams.get("aba") === "equipe" ? "team" : "board";
+  const tab: Tab =
+    (Object.entries(TAB_PARAM).find(([, value]) => value && value === searchParams.get("aba"))?.[0] as Tab) ??
+    "board";
 
   const { state, reload, upsertTask, removeTask, upsertColumn, moveTask, movingIds } =
     useProjectBoard(projectId);
@@ -67,8 +76,15 @@ export function ProjectBoardPage() {
     });
   }, [data, search, assigneeFilter]);
 
-  const setTab = (next: Tab) =>
-    setSearchParams(next === "team" ? { aba: "equipe" } : {}, { replace: true });
+  const setTab = (next: Tab) => {
+    const value = TAB_PARAM[next];
+    setSearchParams(value ? { aba: value } : {}, { replace: true });
+  };
+
+  const openTaskById = (taskId: number) => {
+    if (data?.tasks.some((task) => task.id === taskId)) setView({ kind: "details", taskId });
+    else error(t.feedback.taskNotFound);
+  };
 
   const columnName = (status: TaskStatus) => columns.find((c) => c.status === status)?.name ?? status;
 
@@ -156,11 +172,12 @@ export function ProjectBoardPage() {
         )}
       </div>
 
-      <div role="tablist" aria-label={t.tabs.label} className="mt-6 flex gap-1 border-b border-slate-200">
+      <div role="tablist" aria-label={t.tabs.label} className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
         {(
           [
             ["board", t.tabs.board, KanbanSquare, tasks.length],
             ["team", t.tabs.team, Users, project.team.length],
+            ["assistant", t.tabs.assistant, Bot, null],
           ] as const
         ).map(([key, label, Icon, count]) => (
           <button
@@ -171,13 +188,15 @@ export function ProjectBoardPage() {
             aria-selected={tab === key}
             aria-controls={`project-panel-${key}`}
             onClick={() => setTab(key)}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium ${
+            className={`-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium ${
               tab === key ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
             <Icon className="size-4" aria-hidden="true" />
             {label}
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{count}</span>
+            {count != null && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{count}</span>
+            )}
           </button>
         ))}
       </div>
@@ -188,9 +207,19 @@ export function ProjectBoardPage() {
         aria-labelledby={`project-tab-${tab}`}
         className="mt-6"
       >
-        {tab === "team" ? (
+        {tab === "team" && (
           <TeamPanel project={project} currentUserId={user?.id} permissions={permissions} />
-        ) : (
+        )}
+        {tab === "assistant" && (
+          <div className="flex flex-col gap-4">
+            <FeedbackBanner feedback={view ? null : feedback} onClose={clear} />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <SummaryPanel projectId={project.id} onOpenTask={openTaskById} />
+              <AssistantPanel projectId={project.id} onOpenTask={openTaskById} />
+            </div>
+          </div>
+        )}
+        {tab === "board" && (
           <div className="flex flex-col gap-4">
             <FeedbackBanner feedback={view ? null : feedback} onClose={clear} />
 
@@ -244,6 +273,9 @@ export function ProjectBoardPage() {
               onMoveTask={handleMove}
               onCreateTask={(status) => setView({ kind: "form", status })}
               onEditColumn={(column) => setView({ kind: "column", column })}
+              onSuggestAssignee={
+                permissions.canDecideAssignment ? (task) => setView({ kind: "recommend", task }) : undefined
+              }
             />
           </div>
         )}
@@ -264,6 +296,35 @@ export function ProjectBoardPage() {
           onDelete={() => setView({ kind: "delete", task: detailsTask })}
           onMove={(status) => handleMove(detailsTask.id, status)}
           onOpenTask={(task) => setView({ kind: "details", taskId: task.id })}
+          onSuggestAssignee={
+            permissions.canDecideAssignment && detailsTask.assigneeId == null
+              ? () => setView({ kind: "recommend", task: detailsTask, returnTo: detailsTask.id })
+              : undefined
+          }
+          onRegisterDependencies={async (dependencyIds) => {
+            const saved = await updateTask(detailsTask.id, taskToInput(detailsTask, { dependencyIds }));
+            upsertTask(saved);
+            success(fillTemplate(t.feedback.dependenciesRegistered, { title: saved.title }));
+          }}
+        />
+      )}
+
+      {view?.kind === "recommend" && (
+        <RecommendationModal
+          task={view.task}
+          team={project.team}
+          onClose={() => setView(view.returnTo ? { kind: "details", taskId: view.returnTo } : null)}
+          onAssigned={(saved, assignee, warning) => {
+            upsertTask(saved);
+            setView(view.returnTo ? { kind: "details", taskId: saved.id } : null);
+            const message = fillTemplate(t.feedback.assigned, { title: saved.title, name: assignee.username });
+            if (warning) error(`${message} ${warning}`);
+            else success(message);
+          }}
+          onRejected={() => {
+            setView(view.returnTo ? { kind: "details", taskId: view.returnTo } : null);
+            success(fillTemplate(t.feedback.recommendationRejected, { title: view.task.title }));
+          }}
         />
       )}
 
@@ -323,7 +384,7 @@ function Shell({
   logout,
   children,
 }: {
-  user: { username: string; email: string } | null;
+  user: User | null;
   logout: () => void;
   children: ReactNode;
 }) {

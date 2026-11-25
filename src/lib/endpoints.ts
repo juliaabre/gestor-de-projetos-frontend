@@ -29,4 +29,22 @@ export const endpoints = {
       `/api/tarefas/${id}/anexos/${attachmentId}/download`,
     history: (id: number) => `/api/tarefas/${id}/historico`,
   },
+  ai: {
+    recommendAssignees: "/api/ia/recomendar-responsaveis",
+    recommendationDecision: "/api/ia/recomendar-responsaveis/decisao",
+    query: "/api/ia/consultar",
+    conversation: "/api/ia/historico",
+    summary: "/api/ia/resumo",
+    bottlenecks: "/api/ia/gargalos",
+    generateDescription: "/api/ia/gerar-descricao",
+    suggestDependencies: "/api/ia/sugerir-dependencias",
+  },
+  admin: {
+    documents: "/api/admin/documentos",
+    documentById: (id: number) => `/api/admin/documentos/${id}`,
+    rules: "/api/admin/regras-dominio",
+    ruleById: (id: number) => `/api/admin/regras-dominio/${id}`,
+    vocabulary: "/api/admin/vocabulario",
+    termById: (id: number) => `/api/admin/vocabulario/${id}`,
+  },
 } as const;

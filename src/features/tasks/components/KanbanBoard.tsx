@@ -21,6 +21,7 @@ export function KanbanBoard({
   onMoveTask,
   onCreateTask,
   onEditColumn,
+  onSuggestAssignee,
 }: {
   columns: BoardColumn[];
   tasks: Task[];
@@ -33,6 +34,7 @@ export function KanbanBoard({
   onMoveTask: (taskId: number, status: TaskStatus) => void;
   onCreateTask: (status: TaskStatus) => void;
   onEditColumn: (column: BoardColumn) => void;
+  onSuggestAssignee?: (task: Task) => void;
 }) {
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
@@ -117,6 +119,7 @@ export function KanbanBoard({
                       dragging={draggingId === task.id}
                       onOpen={() => onOpenTask(task)}
                       onMove={(status) => onMoveTask(task.id, status)}
+                      onSuggest={onSuggestAssignee && !done ? () => onSuggestAssignee(task) : undefined}
                       onDragStart={() => setDraggingId(task.id)}
                       onDragEnd={() => {
                         setDraggingId(null);

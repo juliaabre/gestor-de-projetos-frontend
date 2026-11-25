@@ -16,6 +16,7 @@ import { getErrorMessage, getFieldErrors } from "@/lib/apiError";
 import { fillTemplate } from "@/lib/format";
 import util from "@/lib/util.json";
 import type { TeamMember } from "@/features/projects/types";
+import { DescriptionAssistant } from "@/features/ai/components/DescriptionAssistant";
 import { dependentsOf } from "../board";
 import { taskSchema, type TaskFormData } from "../schemas/taskSchema";
 import { createTask, updateTask } from "../services/taskService";
@@ -72,6 +73,8 @@ export function TaskFormModal({
     control,
     handleSubmit,
     setError,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -161,6 +164,15 @@ export function TaskFormModal({
           />
           {errors.content && <span className={fieldErrorClass}>{errors.content.message}</span>}
         </label>
+        <DescriptionAssistant
+          projectId={projectId}
+          taskId={task?.id}
+          getTitle={() => getValues("title")}
+          getCurrent={() => getValues("content")}
+          onAccept={(description) =>
+            setValue("content", description, { shouldDirty: true, shouldValidate: true })
+          }
+        />
 
         <label className={labelClass}>
           {t.requirements}

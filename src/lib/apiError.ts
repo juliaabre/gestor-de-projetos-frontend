@@ -53,3 +53,16 @@ export function isUnavailable(error: unknown): boolean {
   if (!axios.isAxiosError(error) || !error.response) return false;
   return [404, 405, 501].includes(error.response.status);
 }
+
+/**
+ * Classifica falhas de recursos de IA. "unavailable" cobre IA desligada ou
+ * sobrecarregada (502/503/504), rota ainda inexistente e tempo esgotado; nesses
+ * casos a interface avisa e mantém a edição manual disponível.
+ */
+export function getAiErrorKind(error: unknown): "unavailable" | "error" {
+  if (!axios.isAxiosError(error)) return "error";
+  if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") return "unavailable";
+  const status = error.response?.status;
+  if (status == null) return "error";
+  return [404, 405, 501, 502, 503, 504].includes(status) ? "unavailable" : "error";
+}

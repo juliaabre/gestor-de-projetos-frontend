@@ -10,7 +10,12 @@ body {
   margin: 0;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 }
-button,
-input {
-  font: inherit;
+/* Em @layer base para não sobrescrever utilitários como text-xs/text-sm. */
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
