@@ -37,9 +37,14 @@ import {
   getTask,
   listComments,
   listDependencies,
+  createColumn,
+  deleteColumn,
+  listColumns,
   listHistory,
   listProjectTasks,
   moveTask,
+  reorderColumns,
+  updateColumn,
   updateTask,
 } from "@/features/tasks/services/taskService";
 import { taskToInput } from "@/features/tasks/mappers";
@@ -279,6 +284,88 @@ describe("quadro e tarefas", () => {
     actAs(manager);
     const error = await expectStatus(createTask({ title: "", status: "TODO", priority: "LOW", projectId }), 400);
     expect(getErrorMessage(error, "fallback")).not.toBe("fallback");
+  });
+});
+
+describe("colunas personalizadas (quadros)", () => {
+  let boardProjectId: number;
+  let early: Task;
+
+  beforeAll(async () => {
+    actAs(manager);
+    const project = await createProject({ name: `Quadro integração ${runId}` });
+    boardProjectId = project.id;
+    createdProjects.push(project.id);
+    await updateProject(boardProjectId, { name: project.name, teamIds: [member.user.id!] });
+    // Tarefa criada antes de existir quadro: fica sem coluna gravada.
+    early = await createTask({ title: "Antes do quadro", status: "TODO", priority: "LOW", projectId: boardProjectId });
+  });
+
+  it("projeto novo não tem quadro; membro não cria coluna", async () => {
+    actAs(manager);
+    expect(await listColumns(boardProjectId)).toEqual([]);
+    expect(early.columnId).toBeNull();
+    actAs(member);
+    await expectStatus(createColumn(boardProjectId, { name: "Bloqueado" }), 403);
+  });
+
+  it("a primeira coluna cria o quadro com as colunas padrão", async () => {
+    actAs(manager);
+    const created = await createColumn(boardProjectId, { name: "Revisão" });
+    expect(created).toMatchObject({ name: "Revisão", custom: true });
+    expect(created.status).toBe(`COLUNA_${created.id}`);
+    const columns = await listColumns(boardProjectId);
+    expect(columns.map((c) => [c.name, c.status])).toEqual([
+      ["A fazer", "TODO"],
+      ["Em andamento", "IN_PROGRESS"],
+      ["Concluído", "DONE"],
+      ["Cancelado", "CANCELLED"],
+      ["Revisão", created.status],
+    ]);
+  });
+
+  it("tarefa entra na coluna; membro a move para coluna sem status e o status real se mantém", async () => {
+    actAs(manager);
+    const columns = await listColumns(boardProjectId);
+    const todo = columns.find((c) => c.status === "TODO")!;
+    const review = columns.find((c) => c.name === "Revisão")!;
+    const task = await createTask({ title: "Revisar login", status: "TODO", priority: "HIGH", projectId: boardProjectId });
+    expect(task).toMatchObject({ status: "TODO", columnId: todo.id });
+
+    actAs(member);
+    const moved = await moveTask(task, review.status);
+    expect(moved).toMatchObject({ status: review.status, columnId: review.id, baseStatus: "TODO" });
+    expect((await listHistory(task.id)).map((h) => h.action)).toContain("COLUNA");
+
+    actAs(manager);
+    const edited = await updateTask(task.id, taskToInput(moved, { title: "Revisar login v2" }));
+    expect(edited).toMatchObject({ title: "Revisar login v2", status: review.status, columnId: review.id });
+    const back = await moveTask(edited, "DONE");
+    expect(back).toMatchObject({ status: "DONE", baseStatus: "DONE" });
+  });
+
+  it("renomeia e reordena colunas", async () => {
+    actAs(manager);
+    const review = (await listColumns(boardProjectId)).find((c) => c.name === "Revisão")!;
+    expect((await updateColumn(boardProjectId, review.id!, { name: "Em revisão" })).name).toBe("Em revisão");
+    const ids = (await listColumns(boardProjectId)).map((c) => c.id!);
+    const reordered = await reorderColumns(boardProjectId, [ids[0], review.id!, ...ids.slice(1).filter((id) => id !== review.id)]);
+    expect(reordered.map((c) => c.name).slice(0, 2)).toEqual(["A fazer", "Em revisão"]);
+  });
+
+  it("excluir coluna com tarefas exige destino e leva também as sem coluna gravada", async () => {
+    actAs(manager);
+    const columns = await listColumns(boardProjectId);
+    const todo = columns.find((c) => c.status === "TODO")!;
+    const task = await createTask({ title: "Na fila", status: "TODO", priority: "LOW", projectId: boardProjectId });
+    await expectStatus(deleteColumn(boardProjectId, todo.id!), 409);
+
+    await deleteColumn(boardProjectId, todo.id!, "IN_PROGRESS");
+    expect((await listColumns(boardProjectId)).map((c) => c.status)).not.toContain("TODO");
+    const tasks = await listProjectTasks(boardProjectId);
+    for (const id of [task.id, early.id]) {
+      expect(tasks.find((t) => t.id === id)).toMatchObject({ status: "IN_PROGRESS" });
+    }
   });
 });
 
