@@ -373,7 +373,7 @@ describe("ProjectBoardPage — gerenciamento de colunas", () => {
     await screen.findByRole("article", { name: "Tela de login" });
     await user.click(screen.getByRole("button", { name: "Nova coluna" }));
     const dialog = screen.getByRole("dialog", { name: "Nova coluna" });
-    expect(within(dialog).getByRole("status")).toHaveTextContent(/ainda não oferece colunas personalizadas/);
+    expect(within(dialog).getByRole("status")).toHaveTextContent(/não oferece quadros para este projeto/);
     expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
   });
 
@@ -402,6 +402,25 @@ describe("ProjectBoardPage — gerenciamento de colunas", () => {
       .getAllByRole("heading", { level: 2 })
       .map((h) => h.textContent?.replace(/\d+$/, ""));
     expect(headings).toEqual(["A fazer", "Bloqueado", "Em andamento", "Em revisão"]);
+  });
+
+  it("a primeira coluna cria o quadro e as colunas padrão passam a ser editáveis", async () => {
+    const user = userEvent.setup();
+    const board = [...COLUMNS.slice(0, 2), { id: 4, name: "Bloqueado", status: "COLUNA_4", order: 2, custom: true }];
+    taskService.listColumns.mockResolvedValueOnce([]).mockResolvedValue(board);
+    taskService.createColumn.mockResolvedValue(board[2]);
+    renderPage();
+    await screen.findByRole("article", { name: "Tela de login" });
+    expect(screen.queryByRole("button", { name: "Editar coluna A fazer" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nova coluna" }));
+    const dialog = screen.getByRole("dialog", { name: "Nova coluna" });
+    await user.type(within(dialog).getByLabelText("Nome"), "Bloqueado");
+    await user.click(within(dialog).getByRole("button", { name: "Criar coluna" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(taskService.reorderColumns).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Editar coluna A fazer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar coluna Bloqueado" })).toBeInTheDocument();
   });
 
   it("renomeia e move a coluna para outra posição", async () => {

@@ -52,10 +52,13 @@ export function useProjectBoard(projectId: number) {
   stateRef.current = state;
 
   const fetchAll = useCallback(async (): Promise<BoardData> => {
-    const [project, tasks, columns] = await Promise.all([
+    // As colunas vêm antes das tarefas: é o quadro que diz em que coluna cada
+    // tarefa está.
+    const [project, [columns, tasks]] = await Promise.all([
       getProject(projectId),
-      listProjectTasks(projectId).then(withDependencies),
-      loadColumns(projectId),
+      loadColumns(projectId).then(
+        async (loaded) => [loaded, await listProjectTasks(projectId).then(withDependencies)] as const,
+      ),
     ]);
     return { project, tasks, ...columns };
   }, [projectId]);

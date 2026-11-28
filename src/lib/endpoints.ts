@@ -23,19 +23,16 @@ export const endpoints = {
     documents: (id: number) => `/api/projetos/${id}/documentos`,
     documentChunks: (id: number, documentId: number) =>
       `/api/projetos/${id}/documentos/${documentId}/trechos`,
-    /**
-     * Colunas personalizadas: proposta ainda não implementada no backend, que
-     * hoje tem quadros (`/quadros`) sem vínculo entre coluna e tarefa.
-     */
-    columns: (id: number) => `/api/projetos/${id}/colunas`,
-    columnById: (id: number, columnId: number) => `/api/projetos/${id}/colunas/${columnId}`,
-    columnOrder: (id: number) => `/api/projetos/${id}/colunas/ordem`,
+    /** Quadros do projeto; as colunas personalizadas ficam dentro do quadro. */
+    boards: (id: number) => `/api/projetos/${id}/quadros`,
+    board: (id: number, boardId: number) => `/api/projetos/${id}/quadros/${boardId}`,
   },
   tasks: {
     base: "/api/tarefas",
     byId: (id: number) => `/api/tarefas/${id}`,
     byProject: (projectId: number) => `/api/tarefas/projeto/${projectId}`,
     status: (id: number) => `/api/tarefas/${id}/status`,
+    column: (id: number) => `/api/tarefas/${id}/coluna`,
     comments: (id: number) => `/api/tarefas/${id}/comentarios`,
     attachments: (id: number) => `/api/tarefas/${id}/anexos`,
     attachmentById: (id: number, attachmentId: number) => `/api/tarefas/${id}/anexos/${attachmentId}`,

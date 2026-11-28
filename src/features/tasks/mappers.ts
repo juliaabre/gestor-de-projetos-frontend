@@ -55,13 +55,15 @@ export function statusToApi(status: TaskStatus): string {
 }
 
 export function toTask(dto: TaskResponseDto): Task {
+  const status = statusFromApi(dto.status);
   return {
     id: dto.id,
     title: dto.titulo,
     content: dto.conteudo ?? null,
     requirements: dto.requisitos ?? null,
     technologies: dto.tecnologias ?? [],
-    status: statusFromApi(dto.status),
+    status,
+    baseStatus: status,
     priority: PRIORITY_FROM_API[dto.prioridade] ?? "MEDIUM",
     complexity: toComplexity(dto.complexidade),
     dueDate: dto.prazo ? dto.prazo.slice(0, 10) : null,
@@ -69,23 +71,39 @@ export function toTask(dto: TaskResponseDto): Task {
     // Dependências vêm de rota própria (`/dependencias`) e são preenchidas depois.
     dependencyIds: [],
     projectId: dto.projetoId,
+    columnId: dto.colunaId ?? null,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
   };
 }
 
-export function toTaskRequest(input: TaskInput): TaskRequestDto {
+/** Coluna do quadro no servidor para onde a tarefa vai. */
+export interface ColumnTarget {
+  id: number;
+  /** Status vinculado à coluna (formato da API), ou `null`. */
+  apiStatus: string | null;
+}
+
+/**
+ * Corpo do POST/PUT. Com `column`, a tarefa é posicionada nessa coluna: se a
+ * coluna tiver status, a tarefa assume esse status; senão mantém o seu.
+ */
+export function toTaskRequest(input: TaskInput, column?: ColumnTarget): TaskRequestDto {
+  const status = column
+    ? (column.apiStatus ?? statusToApi(input.baseStatus ?? "TODO"))
+    : statusToApi(input.status);
   return {
     titulo: input.title,
     conteudo: input.content,
     requisitos: input.requirements,
     tecnologias: input.technologies,
-    status: statusToApi(input.status),
+    status,
     prioridade: PRIORITY_TO_API[input.priority],
     complexidade: input.complexity === undefined ? undefined : (input.complexity ?? null),
     prazo: input.dueDate,
     responsavelId: input.assigneeId,
     projetoId: input.projectId,
+    ...(column ? { colunaId: column.id } : {}),
   };
 }
 
@@ -103,19 +121,43 @@ export function taskToInput(task: Task, overrides: Partial<TaskInput> = {}): Tas
     assigneeId: task.assigneeId,
     dependencyIds: task.dependencyIds,
     projectId: task.projectId,
+    baseStatus: task.baseStatus,
     ...overrides,
   };
 }
 
+/** Chave de coluna sem status vinculado (ou com status repetido no quadro). */
+export const columnKey = (columnId: number): TaskStatus => `COLUNA_${columnId}`;
+
+/**
+ * O quadro posiciona as tarefas pela chave `status` da coluna. Uma coluna com
+ * status vinculado usa esse status como chave, e as tarefas com esse status
+ * caem nela; as demais usam `COLUNA_{id}`.
+ */
 export function toColumn(dto: ColumnDto, index: number): BoardColumn {
-  const status = statusFromApi(dto.status);
+  const status = dto.status ? statusFromApi(dto.status) : columnKey(dto.id);
   return {
     id: dto.id,
     name: dto.nome,
     status,
-    order: dto.ordem ?? index,
+    order: dto.posicao ?? index,
     custom: !TASK_STATUSES.some((s) => s.value === status),
   };
+}
+
+/** Colunas na ordem do quadro; um status repetido vale só para a primeira coluna. */
+export function toColumns(dtos: ColumnDto[]): BoardColumn[] {
+  const used = new Set<TaskStatus>();
+  return dtos
+    .map(toColumn)
+    .sort((a, b) => a.order - b.order)
+    .map((column) => {
+      if (used.has(column.status) && column.id != null) {
+        return { ...column, status: columnKey(column.id), custom: true };
+      }
+      used.add(column.status);
+      return column;
+    });
 }
 
 export const DEFAULT_COLUMNS: BoardColumn[] = TASK_STATUSES.map((status, index) => ({

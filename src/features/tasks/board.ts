@@ -2,14 +2,12 @@ import util from "@/lib/util.json";
 import type { BoardColumn, Task, TaskInput, TaskStatus } from "./types";
 
 /**
- * Colunas personalizadas dependem de o backend ligar colunas a tarefas (hoje
- * os quadros só guardam nomes e a tarefa tem status fixo). Até lá ficam
- * desligadas; a simulação (`pnpm dev:mock`) e os testes as habilitam, e
- * `VITE_CUSTOM_COLUMNS=true` liga quando o backend oferecer o recurso.
+ * Colunas personalizadas vêm do quadro do projeto (`/quadros`). Ficam ligadas
+ * por padrão; `VITE_CUSTOM_COLUMNS=false` volta às colunas fixas por status
+ * (útil com um backend que ainda não tenha quadros).
  */
 export function customColumnsEnabled(): boolean {
-  const env = import.meta.env;
-  return env.VITE_CUSTOM_COLUMNS === "true" || env.MODE === "mock" || env.MODE === "test";
+  return import.meta.env.VITE_CUSTOM_COLUMNS !== "false";
 }
 
 export function resolveColumns(columns: BoardColumn[], tasks: Task[]): BoardColumn[] {

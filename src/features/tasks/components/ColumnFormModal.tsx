@@ -17,7 +17,7 @@ import { getErrorMessage, getFieldErrors } from "@/lib/apiError";
 import { fillTemplate } from "@/lib/format";
 import util from "@/lib/util.json";
 import { statusKeyFromName } from "../board";
-import { createColumn, reorderColumns, updateColumn } from "../services/taskService";
+import { createColumn, listColumns, reorderColumns, updateColumn } from "../services/taskService";
 import type { BoardColumn } from "../types";
 
 const t = util.board.columnForm;
@@ -98,7 +98,11 @@ export function ColumnFormModal({
 
       const target = Number(position);
       let reordered: BoardColumn[] | undefined;
-      if (saved.id != null && target !== currentIndex) {
+      if (persisted.length === 0) {
+        // Primeira coluna personalizada: o quadro acabou de ser criado com as
+        // colunas padrão, que passam a ter id e podem ser editadas.
+        reordered = await listColumns(projectId);
+      } else if (saved.id != null && target !== currentIndex) {
         const ids = persisted.map((c) => c.id!).filter((id) => id !== saved.id);
         ids.splice(target, 0, saved.id);
         reordered = await reorderColumns(projectId, ids);

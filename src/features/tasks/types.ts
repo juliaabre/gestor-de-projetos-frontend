@@ -48,6 +48,13 @@ export interface Task {
   assigneeId: number | null;
   dependencyIds: number[];
   projectId: number;
+  /**
+   * Coluna do quadro em que a tarefa está no servidor. Quando é uma coluna
+   * sem status vinculado, `status` traz a chave da coluna e `baseStatus`, o
+   * status real da tarefa.
+   */
+  columnId?: number | null;
+  baseStatus?: TaskStatus;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -64,6 +71,8 @@ export interface TaskInput {
   assigneeId?: number | null;
   dependencyIds?: number[];
   projectId: number;
+  /** Status real a manter quando a tarefa vai para uma coluna sem status vinculado. */
+  baseStatus?: TaskStatus;
 }
 
 export interface BoardColumn {
@@ -132,6 +141,7 @@ export interface TaskRequestDto {
   prazo?: string | null;
   responsavelId?: number | null;
   projetoId: number;
+  colunaId?: number | null;
 }
 
 export interface TaskResponseDto {
@@ -146,15 +156,31 @@ export interface TaskResponseDto {
   prazo?: string | null;
   responsavelId?: number | null;
   projetoId: number;
+  colunaId?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
 
+/** Coluna de um quadro (`/api/projetos/{id}/quadros`). `status` é opcional. */
 export interface ColumnDto {
   id: number;
   nome: string;
-  status: string;
-  ordem?: number | null;
+  posicao?: number | null;
+  status?: string | null;
+}
+
+export interface BoardDto {
+  id: number;
+  projetoId: number;
+  nome: string;
+  colunas: ColumnDto[];
+}
+
+/** Coluna enviada ao criar ou atualizar um quadro; sem `id`, é uma coluna nova. */
+export interface ColumnConfigDto {
+  id?: number;
+  nome: string;
+  status: string | null;
 }
 
 export interface CommentDto {

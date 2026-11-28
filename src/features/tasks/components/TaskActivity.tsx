@@ -349,6 +349,8 @@ function describe(entry: TaskHistoryEntry, nameOf: NameOf): string {
       return fillTemplate(h.created, { status: statusLabel(entry.status) });
     case "STATUS":
       return fillTemplate(h.status, { status: statusLabel(entry.status) });
+    case "COLUNA":
+      return fillTemplate(h.column, { status: statusLabel(entry.status) });
     case "ATRIBUICAO":
       return entry.assigneeId != null
         ? fillTemplate(h.assigned, { name: nameOf(entry.assigneeId) ?? `#${entry.assigneeId}` })

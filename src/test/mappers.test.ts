@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toProject, toProjectRequest } from "@/features/projects/mappers";
-import { taskToInput, toColumn, toTask, toTaskRequest } from "@/features/tasks/mappers";
+import { taskToInput, toColumn, toColumns, toTask, toTaskRequest } from "@/features/tasks/mappers";
 import { dependentsOf, resolveColumns, statusKeyFromName } from "@/features/tasks/board";
 import { validateAttachment } from "@/features/tasks/components/TaskActivity";
 import { toAttachment, toComment, toHistoryEntry } from "@/features/tasks/mappers";
@@ -157,11 +157,34 @@ describe("conversão entre o JSON do backend e o modelo do frontend", () => {
 
   it("identifica colunas personalizadas", () => {
     expect(toColumn({ id: 1, nome: "A fazer", status: "PENDENTE" }, 0)).toMatchObject({ status: "TODO", custom: false });
-    expect(toColumn({ id: 2, nome: "Revisão", status: "EM_REVISAO", ordem: 5 }, 1)).toMatchObject({
-      status: "EM_REVISAO",
+    expect(toColumn({ id: 2, nome: "Revisão", status: null, posicao: 5 }, 1)).toMatchObject({
+      status: "COLUNA_2",
       order: 5,
       custom: true,
     });
+  });
+
+  it("ordena as colunas do quadro e usa o status repetido só na primeira", () => {
+    const columns = toColumns([
+      { id: 3, nome: "Feito", posicao: 2, status: "CONCLUIDA" },
+      { id: 1, nome: "A fazer", posicao: 0, status: "PENDENTE" },
+      { id: 2, nome: "Backlog", posicao: 1, status: "PENDENTE" },
+    ]);
+    expect(columns.map((c) => [c.id, c.status])).toEqual([
+      [1, "TODO"],
+      [2, "COLUNA_2"],
+      [3, "DONE"],
+    ]);
+  });
+
+  it("envia a coluna da tarefa e mantém o status real em coluna sem status", () => {
+    const input = { title: "T", status: "COLUNA_7", baseStatus: "IN_PROGRESS", priority: "LOW" as const, projectId: 1 };
+    expect(toTaskRequest(input, { id: 7, apiStatus: null })).toMatchObject({ status: "EM_ANDAMENTO", colunaId: 7 });
+    expect(toTaskRequest({ ...input, status: "DONE" }, { id: 8, apiStatus: "CONCLUIDA" })).toMatchObject({
+      status: "CONCLUIDA",
+      colunaId: 8,
+    });
+    expect(toTaskRequest({ ...input, status: "DONE" })).not.toHaveProperty("colunaId");
   });
 });
 

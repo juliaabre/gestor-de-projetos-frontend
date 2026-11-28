@@ -301,7 +301,7 @@
     "columnForm": {
       "createTitle": "Nova coluna",
       "editTitle": "Editar coluna",
-      "description": "A coluna representa um status das tarefas do quadro.",
+      "description": "A coluna entra no fim do quadro. Tarefas movidas para ela mantêm o status que já tinham.",
       "name": "Nome",
       "namePlaceholder": "Ex.: Em revisão",
       "nameRequired": "Informe o nome da coluna.",
@@ -317,7 +317,7 @@
       "positionLast": "{n}ª posição (última)",
       "delete": "Excluir coluna",
       "deleteLastHint": "O quadro precisa de ao menos uma coluna.",
-      "unavailable": "O servidor ainda não oferece colunas personalizadas, então o quadro usa as colunas padrão (A fazer, Em andamento, Concluído e Cancelado). Criar, renomear, reordenar e excluir colunas ficará disponível assim que o backend implementar esse recurso."
+      "unavailable": "O servidor não oferece quadros para este projeto, então o quadro usa as colunas padrão (A fazer, Em andamento, Concluído e Cancelado). Criar, renomear, reordenar e excluir colunas depende das rotas de quadros do backend."
     },
     "columnDelete": {
       "title": "Excluir a coluna \"{name}\"?",
@@ -471,6 +471,7 @@
         "unavailable": "O histórico de alterações não está disponível para esta tarefa.",
         "created": "criou a tarefa em \"{status}\"",
         "status": "moveu para \"{status}\"",
+        "column": "moveu de coluna (status \"{status}\")",
         "assigned": "definiu {name} como responsável",
         "unassigned": "removeu o responsável",
         "updated": "editou a tarefa",
