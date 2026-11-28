@@ -3,6 +3,7 @@ import {
   DEMO_PASSWORD,
   db,
   nextId,
+  type MockBoard,
   type MockProject,
   type MockTask,
   type MockUser,
@@ -270,74 +271,115 @@ on("delete", "/api/projetos/:id", (req) => {
   requireManage(project, user);
   db.projects = db.projects.filter((p) => p.id !== project.id);
   db.tasks = db.tasks.filter((t) => t.projetoId !== project.id);
+  db.boards = db.boards.filter((b) => b.projetoId !== project.id);
 });
 
-// ------------------------------------------- colunas (proposta, ainda não no backend)
+// ------------------------------------------------------- quadros e colunas
 
-function projectColumns(projectId: number) {
-  if (!db.columns.some((c) => c.projetoId === projectId)) {
-    ["PENDENTE:A fazer", "EM_ANDAMENTO:Em andamento", "CONCLUIDA:Concluído", "CANCELADA:Cancelado"].forEach((entry, i) => {
-      const [status, nome] = entry.split(":");
-      db.columns.push({ id: nextId(), projetoId: projectId, nome, status, ordem: i });
-    });
+type BoardBody = {
+  nome?: string;
+  colunas?: { id?: number | null; nome?: string; status?: string | null }[];
+  realocacoes?: Record<string, number>;
+};
+
+const boardDto = (board: MockBoard) => ({
+  ...board,
+  colunas: [...board.colunas].sort((a, b) => a.posicao - b.posicao),
+});
+
+function findColumn(columnId: number) {
+  for (const board of db.boards) {
+    const column = board.colunas.find((c) => c.id === columnId);
+    if (column) return { board, column };
   }
-  return db.columns.filter((c) => c.projetoId === projectId).sort((a, b) => a.ordem - b.ordem);
+  return null;
 }
 
-on("get", "/api/projetos/:id/colunas", (req) => projectColumns(findProject(id(req.params.id), currentUser(req)).id));
-on("post", "/api/projetos/:id/colunas", (req) => {
+/** Mesmas regras do `QuadroService` do backend. */
+function configureBoard(board: MockBoard, body: BoardBody) {
+  const colunas = body.colunas ?? [];
+  if (!body.nome?.trim() || colunas.length === 0) throw new HttpError(400, "Informe o nome e ao menos uma coluna.");
+  const names = new Set<string>();
+  const kept = new Set<number>();
+  for (const column of colunas) {
+    const name = column.nome?.trim().toLowerCase();
+    if (!name) throw new HttpError(400, "Informe o nome de cada coluna.");
+    if (names.has(name)) throw new HttpError(400, "Nome de coluna duplicado.");
+    names.add(name);
+    if (column.id != null) {
+      if (!board.colunas.some((c) => c.id === column.id) || kept.has(column.id)) {
+        throw new HttpError(400, "ID de coluna inválido ou repetido neste quadro.");
+      }
+      kept.add(column.id);
+    }
+  }
+  const moves = body.realocacoes ?? {};
+  for (const removed of board.colunas.filter((c) => !kept.has(c.id))) {
+    const affected = db.tasks.filter((t) => t.colunaId === removed.id);
+    if (affected.length === 0) continue;
+    const targetId = moves[removed.id];
+    if (targetId == null) {
+      throw new HttpError(409, `A coluna "${removed.nome}" tem tarefas. Informe em realocacoes para qual coluna mantida elas devem ir.`);
+    }
+    if (!kept.has(targetId)) throw new HttpError(400, "A coluna de destino deve ser uma coluna mantida deste quadro.");
+    const targetStatus = colunas.find((c) => c.id === targetId)?.status ?? null;
+    for (const task of affected) {
+      task.colunaId = targetId;
+      if (targetStatus) task.status = targetStatus;
+    }
+  }
+  board.nome = body.nome.trim();
+  board.colunas = colunas.map((column, posicao) => ({
+    id: column.id ?? nextId(),
+    nome: column.nome!.trim(),
+    posicao,
+    status: column.status ?? null,
+  }));
+}
+
+on("get", "/api/projetos/:id/quadros", (req) => {
+  const project = findProject(id(req.params.id), currentUser(req));
+  return db.boards.filter((b) => b.projetoId === project.id).map(boardDto);
+});
+on("post", "/api/projetos/:id/quadros", (req) => {
   const user = currentUser(req);
   const project = findProject(id(req.params.id), user);
   requireManage(project, user);
   requireActive(project);
-  const body = json<{ nome: string; status: string }>(req.body);
-  const columns = projectColumns(project.id);
-  if (columns.some((c) => c.status === body.status)) throw new HttpError(409, "Já existe uma coluna com este status.");
-  const column = { id: nextId(), projetoId: project.id, nome: body.nome, status: body.status, ordem: columns.length };
-  db.columns.push(column);
-  return column;
+  const board: MockBoard = { id: nextId(), projetoId: project.id, nome: "", colunas: [] };
+  configureBoard(board, json<BoardBody>(req.body));
+  db.boards.push(board);
+  return boardDto(board);
 });
-on("put", "/api/projetos/:id/colunas/ordem", (req) => {
+on("put", "/api/projetos/:id/quadros/:qid", (req) => {
   const user = currentUser(req);
   const project = findProject(id(req.params.id), user);
   requireManage(project, user);
-  const ids = json<{ colunaIds: number[] }>(req.body).colunaIds;
-  const columns = projectColumns(project.id);
-  if (ids.length !== columns.length || !columns.every((c) => ids.includes(c.id))) {
-    throw new HttpError(400, "Envie todas as colunas do projeto na nova ordem.");
+  requireActive(project);
+  const board = db.boards.find((b) => b.id === id(req.params.qid) && b.projetoId === project.id);
+  if (!board) throw new HttpError(404, "Quadro não encontrado neste projeto.");
+  configureBoard(board, json<BoardBody>(req.body));
+  return boardDto(board);
+});
+
+/** Como o `posicionar` do backend: a tarefa assume o status da coluna, se houver. */
+function placeTask(task: MockTask, columnId: number) {
+  const found = findColumn(columnId);
+  if (!found) throw new HttpError(400, "Coluna não encontrada.");
+  if (found.board.projetoId !== task.projetoId) {
+    throw new HttpError(400, "A coluna deve pertencer a um quadro do projeto da tarefa.");
   }
-  for (const column of columns) column.ordem = ids.indexOf(column.id);
-  return projectColumns(project.id);
-});
-on("delete", "/api/projetos/:id/colunas/:cid", (req) => {
-  const user = currentUser(req);
-  const project = findProject(id(req.params.id), user);
-  requireManage(project, user);
-  const columns = projectColumns(project.id);
-  const column = columns.find((c) => c.id === id(req.params.cid));
-  if (!column) throw new HttpError(404, "Coluna não encontrada.");
-  if (columns.length === 1) throw new HttpError(409, "O quadro precisa de ao menos uma coluna.");
-  const tasks = db.tasks.filter((t) => t.projetoId === project.id && t.status === column.status);
-  const moveTo = typeof req.query.moverPara === "string" ? req.query.moverPara : undefined;
-  if (tasks.length > 0) {
-    if (!moveTo || !columns.some((c) => c.status === moveTo && c.id !== column.id)) {
-      throw new HttpError(400, "Informe para qual coluna as tarefas devem ser movidas.");
-    }
-    for (const task of tasks) task.status = moveTo;
-  }
-  db.columns = db.columns.filter((c) => c.id !== column.id);
-  projectColumns(project.id).forEach((c, index) => (c.ordem = index));
-  return null;
-});
-on("put", "/api/projetos/:id/colunas/:cid", (req) => {
-  const user = currentUser(req);
-  const project = findProject(id(req.params.id), user);
-  requireManage(project, user);
-  const column = db.columns.find((c) => c.id === id(req.params.cid) && c.projetoId === project.id);
-  if (!column) throw new HttpError(404, "Coluna não encontrada.");
-  column.nome = json<{ nome: string }>(req.body).nome;
-  return column;
-});
+  task.colunaId = columnId;
+  if (found.column.status) task.status = found.column.status;
+}
+
+/** Ao mudar só o status, a tarefa vai para a coluna desse status no mesmo quadro. */
+function syncColumn(task: MockTask) {
+  const found = task.colunaId != null ? findColumn(task.colunaId) : null;
+  if (!found || !found.column.status || found.column.status === task.status) return;
+  task.colunaId =
+    [...found.board.colunas].sort((a, b) => a.posicao - b.posicao).find((c) => c.status === task.status)?.id ?? null;
+}
 
 // ------------------------------------------------------------------- tarefas
 
@@ -382,8 +424,9 @@ on("post", "/api/tarefas", (req) => {
   const project = findProject(Number(body.projetoId), user);
   requireManage(project, user);
   requireActive(project);
-  const task = { id: nextId(), projetoId: project.id, dependenciasIds: [], createdAt: now() } as unknown as MockTask;
+  const task = { id: nextId(), projetoId: project.id, colunaId: null, dependenciasIds: [], createdAt: now() } as unknown as MockTask;
   applyTask(task, body, project);
+  if (body.colunaId != null) placeTask(task, body.colunaId);
   db.tasks.push(task);
   audit(task, "CRIACAO", user.id);
   return taskDto(task);
@@ -397,6 +440,7 @@ on("put", "/api/tarefas/:id", (req) => {
   validateTask(body);
   const previous = task.responsavelId;
   applyTask(task, body, project);
+  if (body.colunaId != null) placeTask(task, body.colunaId);
   audit(task, previous !== task.responsavelId ? "ATRIBUICAO" : "ATUALIZACAO", user.id);
   return taskDto(task);
 });
@@ -407,8 +451,20 @@ on("patch", "/api/tarefas/:id/status", (req) => {
   const status = req.query.novoStatus;
   if (typeof status !== "string" || !status) throw new HttpError(400, "Status obrigatório.");
   task.status = status;
+  syncColumn(task);
   task.updatedAt = now();
   audit(task, "STATUS", user.id);
+  return taskDto(task);
+});
+on("patch", "/api/tarefas/:id/coluna", (req) => {
+  const user = currentUser(req);
+  const { task, project } = findTask(id(req.params.id), user);
+  requireActive(project);
+  const columnId = Number(req.query.colunaId);
+  if (!columnId) throw new HttpError(400, "Coluna obrigatória.");
+  placeTask(task, columnId);
+  task.updatedAt = now();
+  audit(task, "COLUNA", user.id);
   return taskDto(task);
 });
 on("delete", "/api/tarefas/:id", (req) => {

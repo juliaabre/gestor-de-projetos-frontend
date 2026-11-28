@@ -40,17 +40,18 @@ export interface MockTask {
   /** Interno da simulação; exposto em `/api/tarefas/{id}/dependencias`. */
   dependenciasIds: number[];
   projetoId: number;
+  /** Coluna do quadro em que a tarefa está (`null`: posicionada só pelo status). */
+  colunaId: number | null;
   createdAt: string;
   updatedAt: string;
 }
 
-/** Colunas personalizadas: proposta de contrato ainda não implementada no backend. */
-export interface MockColumn {
+/** Quadro do projeto, como em `/api/projetos/{id}/quadros`. */
+export interface MockBoard {
   id: number;
   projetoId: number;
   nome: string;
-  status: string;
-  ordem: number;
+  colunas: { id: number; nome: string; posicao: number; status: string | null }[];
 }
 
 export interface MockSkill {
@@ -110,7 +111,7 @@ export interface MockDb {
   users: MockUser[];
   projects: MockProject[];
   tasks: MockTask[];
-  columns: MockColumn[];
+  boards: MockBoard[];
   skills: MockSkill[];
   comments: MockComment[];
   attachments: MockAttachment[];
@@ -120,7 +121,7 @@ export interface MockDb {
   recommendations: MockRecommendation[];
 }
 
-const STORAGE_KEY = "gestor.mock.db.v2";
+const STORAGE_KEY = "gestor.mock.db.v3";
 export const DEMO_PASSWORD = "123456";
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
@@ -136,6 +137,7 @@ function task(partial: Partial<MockTask> & Pick<MockTask, "id" | "titulo" | "pro
     complexidade: 3,
     prazo: null,
     responsavelId: null,
+    colunaId: null,
     dependenciasIds: [],
     createdAt: daysAgo(12),
     updatedAt: daysAgo(2),
@@ -188,11 +190,18 @@ export function seed(): MockDb {
         createdAt: daysAgo(200),
       },
     ],
-    columns: [
-      { id: 1, projetoId: 10, nome: "A fazer", status: "PENDENTE", ordem: 0 },
-      { id: 2, projetoId: 10, nome: "Em andamento", status: "EM_ANDAMENTO", ordem: 1 },
-      { id: 3, projetoId: 10, nome: "Em revisão", status: "EM_REVISAO", ordem: 2 },
-      { id: 4, projetoId: 10, nome: "Concluído", status: "CONCLUIDA", ordem: 3 },
+    boards: [
+      {
+        id: 1,
+        projetoId: 10,
+        nome: "Quadro",
+        colunas: [
+          { id: 1, nome: "A fazer", posicao: 0, status: "PENDENTE" },
+          { id: 2, nome: "Em andamento", posicao: 1, status: "EM_ANDAMENTO" },
+          { id: 3, nome: "Em revisão", posicao: 2, status: null },
+          { id: 4, nome: "Concluído", posicao: 3, status: "CONCLUIDA" },
+        ],
+      },
     ],
     tasks: [
       task({
@@ -228,7 +237,7 @@ export function seed(): MockDb {
       task({
         id: 106, projetoId: 10, titulo: "Busca de livros por título e autor",
         tecnologias: ["React", "Spring Boot"], prioridade: "MEDIA", complexidade: 3,
-        status: "EM_REVISAO", responsavelId: 3,
+        status: "EM_ANDAMENTO", colunaId: 3, responsavelId: 3,
       }),
       task({
         id: 107, projetoId: 10, titulo: "Configurar repositório",
