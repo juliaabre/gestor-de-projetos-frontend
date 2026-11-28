@@ -117,13 +117,19 @@ Erros seguem `{ status, erro, mensagem, erros? }`; `src/lib/apiError.ts` os conv
 
 ### Quadro, tarefas e equipe
 
-- Colunas padrão por status (A fazer, Em andamento, Concluído, Cancelado). Mover usa `PATCH /status`, com atualização otimista e retorno à coluna original se falhar.
+- Colunas do quadro do projeto (`/quadros`); sem quadro, colunas padrão por status (A fazer, Em andamento, Concluído, Cancelado). Mover usa `PATCH /coluna` quando há quadro e `PATCH /status` quando não há, com atualização otimista e retorno à coluna original se falhar.
 - Complexidade de 1 a 5. Dependências são lidas por tarefa e gravadas pela diferença (`PUT`/`DELETE`) depois de salvar a tarefa.
 - Se o servidor não devolver algum campo enviado, a tela avisa quais não foram gravados.
 - Comentários, anexos e histórico mostram o nome do autor a partir da equipe (o backend envia só o id).
 - Na aba **Equipe**, cada integrante vê as próprias competências (o administrador vê todas); as dos demais aparecem como privadas, como o backend exige.
 
-**Colunas personalizadas** estão prontas no frontend (criar, renomear, reordenar e excluir movendo as tarefas), mas dependem de o backend ligar coluna e tarefa: hoje os quadros (`/quadros`) guardam só nomes e a tarefa tem status fixo. Por isso ficam desligadas por padrão (o botão **Nova coluna** explica o motivo) e ligadas na simulação e nos testes; defina `VITE_CUSTOM_COLUMNS=true` quando o backend oferecer as rotas propostas em `endpoints.projects.columns`.
+**Colunas personalizadas** usam o quadro do projeto no backend (`/api/projetos/{id}/quadros`): criar, renomear, reordenar e excluir colunas regravam o quadro inteiro com `PUT`. Na primeira coluna criada, o quadro nasce com as colunas padrão (cada uma vinculada a um status) mais a nova. Regras:
+
+- Uma coluna com status vinculado recebe as tarefas desse status; mover uma tarefa para ela muda o status.
+- Uma coluna sem status (as criadas pela tela) guarda a tarefa pelo `colunaId`, e a tarefa mantém o status que tinha.
+- Ao excluir uma coluna com tarefas, a tela pede a coluna de destino e o backend as realoca (`realocacoes`).
+
+Para um backend sem quadros, `VITE_CUSTOM_COLUMNS=false` volta às colunas fixas por status.
 
 ### IA (aba **Assistente IA** e quadro)
 
